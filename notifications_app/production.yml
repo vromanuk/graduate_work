@@ -1,0 +1,94 @@
+version: '3'
+
+volumes:
+  production_postgres_data: {}
+  production_postgres_data_backups: {}
+  production_traefik: {}
+  kafka-prod-data: {}
+
+services:
+  django: &django
+    build:
+      context: .
+      dockerfile: compose/production/django/Dockerfile
+    image: notifications_api_production_django
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - .env-prod
+    command: /start
+
+  postgres:
+    build:
+      context: .
+      dockerfile: compose/production/postgres/Dockerfile
+    image: notifications_api_production_postgres
+    volumes:
+      - production_postgres_data:/var/lib/postgresql/data:Z
+      - production_postgres_data_backups:/backups:z
+    env_file:
+      - .env-prod
+
+  traefik:
+    build:
+      context: .
+      dockerfile: compose/production/traefik/Dockerfile
+    image: notifications_api_production_traefik
+    depends_on:
+      - django
+    volumes:
+      - production_traefik:/etc/traefik/acme:z
+    ports:
+      - "0.0.0.0:80:80"
+      - "0.0.0.0:443:443"
+      - "0.0.0.0:5555:5555"
+
+  redis:
+    image: redis:6
+
+  celeryworker:
+    <<: *django
+    image: notifications_api_production_celeryworker
+    command: /start-celeryworker
+
+  celerybeat:
+    <<: *django
+    image: notifications_api_production_celerybeat
+    command: /start-celerybeat
+
+  flower:
+    <<: *django
+    image: notifications_api_production_flower
+    command: /start-flower
+
+  zookeeper:
+    image: bitnami/zookeeper:3.7.0
+    container_name: zookeeper
+    env_file:
+      - .env-prod
+
+  kafka:
+    image: bitnami/kafka:3.0.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - 9093:9093
+    volumes:
+      - kafka-prod-data:/data/kafka/
+    env_file:
+      - .env-prod
+
+  kafka-consumer:
+    <<: *django
+    image: notifications_api_production_kafka-consumer
+    container_name: kafka-consumer
+    depends_on:
+      - kafka
+      - zookeeper
+    ports: [ ]
+    restart: on-failure
+    command: /start-kafka-consumer
+    env_file:
+      - .env-prod

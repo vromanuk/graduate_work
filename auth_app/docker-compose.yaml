@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  redis:
+    image: redis
+
+  db:
+    image: postgres:13-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - ./.env
+
+  web:
+    build: .
+    command: gunicorn --worker-class gevent -b :5000 --access-logfile - --error-logfile - patched:"create_app()"
+#    command: gunicorn -b :5000 --access-logfile - --error-logfile - wsgi:"create_app()"
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+      - redis
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.27
+    ports:
+      - "16686:16686"
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:

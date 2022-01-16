@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "notifications_sprint_1"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+Django = "^3.2"
+django-environ = "^0.8.1"
+celery = "^5.2.1"
+django-debug-toolbar = "^3.2.3"
+django-extensions = "^3.1.5"
+psycopg2 = "^2.9.2"
+django-redis = "^5.1.0"
+django-celery-beat = "^2.2.1"
+djangorestframework = "^3.13.0"
+Markdown = "^3.3.6"
+django-filter = "^21.1"
+django-allauth = "^0.47.0"
+pydantic = "^1.8.2"
+django-anymail = {extras = ["mailgun"], version = "^8.4"}
+jsonfield = "^3.1.0"
+argon2-cffi = "^21.3.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+pytest-django = "^4.5.2"
+mypy = "^0.920"
+black = "^21.12b0"
+isort = "^5.10.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
