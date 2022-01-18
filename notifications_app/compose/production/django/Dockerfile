@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   libpq-dev
 
 # Requirements are installed here to ensure they will be cached.
-COPY ./requirements .
+COPY ./notifications_app/requirements .
 
 # Create Python Dependency and Sub-Dependency Wheels.
 RUN pip wheel --wheel-dir /usr/src/app/wheels  \
@@ -61,35 +61,35 @@ RUN pip install --no-cache-dir --no-index --find-links=/wheels/ /wheels/* \
   && rm -rf /wheels/
 
 
-COPY --chown=django:django ./compose/production/django/entrypoint /entrypoint
+COPY --chown=django:django ./notifications_app/compose/production/django/entrypoint /entrypoint
 RUN sed -i 's/\r$//g' /entrypoint
 RUN chmod +x /entrypoint
 
 
-COPY --chown=django:django ./compose/production/django/start /start
+COPY --chown=django:django ./notifications_app/compose/production/django/start /start
 RUN sed -i 's/\r$//g' /start
 RUN chmod +x /start
-COPY --chown=django:django ./compose/production/django/celery/worker/start /start-celeryworker
+COPY --chown=django:django ./notifications_app/compose/production/django/celery/worker/start /start-celeryworker
 RUN sed -i 's/\r$//g' /start-celeryworker
 RUN chmod +x /start-celeryworker
 
 
-COPY --chown=django:django ./compose/production/django/celery/beat/start /start-celerybeat
+COPY --chown=django:django ./notifications_app/compose/production/django/celery/beat/start /start-celerybeat
 RUN sed -i 's/\r$//g' /start-celerybeat
 RUN chmod +x /start-celerybeat
 
 
-COPY ./compose/production/django/celery/flower/start /start-flower
+COPY ./notifications_app/compose/production/django/celery/flower/start /start-flower
 RUN sed -i 's/\r$//g' /start-flower
 RUN chmod +x /start-flower
 
-COPY ./compose/production/django/start-kafka-consumer /start-kafka-consumer
+COPY ./notifications_app/compose/production/django/start-kafka-consumer /start-kafka-consumer
 RUN sed -i 's/\r$//g' /start-kafka-consumer
 RUN chmod +x /start-kafka-consumer
 
 
 # copy application code to WORKDIR
-COPY --chown=django:django . ${APP_HOME}
+COPY --chown=django:django ./notifications_app ${APP_HOME}
 
 # make django owner of the WORKDIR directory as well.
 RUN chown django:django ${APP_HOME}

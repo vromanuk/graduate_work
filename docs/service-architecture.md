@@ -10,7 +10,7 @@ skinparam BoxPadding 2
 
 box "Billing" #LightYellow
     actor Client
-    collections nginx_billing
+    collections nginx
     collections billing
     database PostgresBilling
 end box
@@ -29,19 +29,19 @@ box "Notifications" #Orange
     control Redis
 end box
 
-Client -> nginx_billing: Proxy request
-activate nginx_billing
-nginx_billing -> billing: Create subscription
+Client -> nginx: Proxy request
+activate nginx
+nginx -> billing: Create subscription
 activate billing
 billing -> PostgresBilling: Save subscription
 deactivate PostgresBilling
 activate Kafka
 billing -> Kafka: Emit event `USER_SUBSCRIBED`
 deactivate Kafka
-billing -> nginx_billing: 200 OK
+billing -> nginx: 200 OK
 deactivate billing
-nginx_billing -> Client: Successfully subscribed
-deactivate nginx_billing
+nginx -> Client: Successfully subscribed
+deactivate nginx
 
 activate Kafka
 activate auth
