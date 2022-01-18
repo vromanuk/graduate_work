@@ -62,6 +62,9 @@ class Config:
     REDIS_HOST = os.getenv("REDIS_HOST", "redis")
     REDIS_PORT = os.getenv("REDIS_PORT", 6379)
 
+    KAFKA_HOST = os.getenv("KAFKA_HOST", "kafka")
+    KAFKA_PORT = os.getenv("KAFKA_PORT", 9093)
+
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 

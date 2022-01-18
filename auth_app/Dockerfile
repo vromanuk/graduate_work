@@ -3,6 +3,7 @@ FROM python:3.9-slim-buster
 # set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
+ENV PYTHONPATH "${PYTHONPATH}:/src"
 
 RUN useradd -ms /bin/bash auth_user
 WORKDIR /src
@@ -23,6 +24,7 @@ RUN poetry install --no-root
 COPY --chown=auth_user:auth_user ["./auth_app/", "/src"]
 
 RUN chmod +x src/scripts/wait_to_start.sh
+RUN chmod +x src/scripts/start_kafka_consumer.sh
 USER auth_user
 
 ENTRYPOINT ["src/scripts/wait_to_start.sh"]
