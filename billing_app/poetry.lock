@@ -29,6 +29,22 @@ python-versions = ">=3.5.0"
 unicode_backport = ["unicodedata2"]
 
 [[package]]
+name = "dj-stripe"
+version = "2.6.0"
+description = "Django + Stripe made easy"
+category = "main"
+optional = false
+python-versions = ">=3.7.12,<4.0.0"
+
+[package.dependencies]
+django = ">=3.2.5"
+jsonfield = ">=3.0"
+stripe = ">=2.48.0"
+
+[package.extras]
+docs = ["mkdocs (>=1.1.2,<2.0.0)", "mkdocstrings (>=0.16.0,<0.17.0)", "mkdocs-material (>=7.2.8,<8.0.0)", "mkdocs-autorefs (>=0.3.0,<0.4.0)", "mike (>=1.1.2,<2.0.0)"]
+
+[[package]]
 name = "django"
 version = "3.2.11"
 description = "A high-level Python Web framework that encourages rapid development and clean, pragmatic design."
@@ -52,6 +68,17 @@ description = "Internationalized Domain Names in Applications (IDNA)"
 category = "main"
 optional = false
 python-versions = ">=3.5"
+
+[[package]]
+name = "jsonfield"
+version = "3.1.0"
+description = "A reusable Django field that allows you to store validated JSON in your model."
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+Django = ">=2.2"
 
 [[package]]
 name = "psycopg2-binary"
@@ -122,7 +149,7 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "285d9b7c97b171d8fe37ab3274deffd6a3d5963a522b882361edb3f485ef0548"
+content-hash = "63a14bcac7b199aa76c4c61f49918ba383c9732f04ca1f8b7d4eabee5563ca8f"
 
 [metadata.files]
 asgiref = [
@@ -137,6 +164,10 @@ charset-normalizer = [
     {file = "charset-normalizer-2.0.10.tar.gz", hash = "sha256:876d180e9d7432c5d1dfd4c5d26b72f099d503e8fcc0feb7532c9289be60fcbd"},
     {file = "charset_normalizer-2.0.10-py3-none-any.whl", hash = "sha256:cb957888737fc0bbcd78e3df769addb41fd1ff8cf950dc9e7ad7793f1bf44455"},
 ]
+dj-stripe = [
+    {file = "dj-stripe-2.6.0.tar.gz", hash = "sha256:c587e7c1585fd3c279d287732ddc3b89b96382e4fe7fa9217e4d53d16b8ae64a"},
+    {file = "dj_stripe-2.6.0-py3-none-any.whl", hash = "sha256:1fea6f69e21053bf70d60b40a306578ddc2dda7f0e7998b70f58960112ccc63b"},
+]
 django = [
     {file = "Django-3.2.11-py3-none-any.whl", hash = "sha256:0a0a37f0b93aef30c4bf3a839c187e1175bcdeb7e177341da0cb7b8194416891"},
     {file = "Django-3.2.11.tar.gz", hash = "sha256:69c94abe5d6b1b088bf475e09b7b74403f943e34da107e798465d2045da27e75"},
@@ -144,6 +175,10 @@ django = [
 idna = [
     {file = "idna-3.3-py3-none-any.whl", hash = "sha256:84d9dd047ffa80596e0f246e2eab0b391788b0503584e8945f2368256d2735ff"},
     {file = "idna-3.3.tar.gz", hash = "sha256:9d643ff0a55b762d5cdb124b8eaa99c66322e2157b69160bc32796e824360e6d"},
+]
+jsonfield = [
+    {file = "jsonfield-3.1.0-py3-none-any.whl", hash = "sha256:df857811587f252b97bafba42e02805e70a398a7a47870bc6358a0308dd689ed"},
+    {file = "jsonfield-3.1.0.tar.gz", hash = "sha256:7e4e84597de21eeaeeaaa7cc5da08c61c48a9b64d0c446b2d71255d01812887a"},
 ]
 psycopg2-binary = [
     {file = "psycopg2-binary-2.9.3.tar.gz", hash = "sha256:761df5313dc15da1502b21453642d7599d26be88bff659382f8f9747c7ebea4e"},
