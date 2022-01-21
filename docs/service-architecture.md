@@ -42,11 +42,15 @@ deactivate Stripe
 billing -> PostgresBilling: Save or Update subscription info
 deactivate PostgresBilling
 activate Kafka
-billing -> Kafka: Emit event `USER_SUBSCRIBED`
+alt if webhook_event == `checkout.session.completed`
+    billing -> Kafka: Emit event `USER_SUBSCRIBED`
+else
+    billing -> Kafka: Emit event `USER_UNSUBSCRIBED`
+end
 deactivate Kafka
 billing -> nginx: 200 OK
 deactivate billing
-nginx -> Client: Successfully subscribed
+nginx -> Client: Successfully subscribed / unsubscribed
 deactivate nginx
 Stripe -> Stripe: Recurring charges
 
