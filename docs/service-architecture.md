@@ -12,6 +12,7 @@ box "Billing" #LightYellow
     actor Client
     collections nginx
     collections billing
+    collections Stripe
     database PostgresBilling
 end box
 
@@ -26,14 +27,19 @@ end box
 
 box "Notifications" #Orange
     collections notifications
-    control Redis
+    queue Redis
 end box
 
 Client -> nginx: Proxy request
 activate nginx
-nginx -> billing: Create subscription
+nginx -> billing: Redirect the client to the Stripe
 activate billing
-billing -> PostgresBilling: Save subscription
+billing -> Stripe: Validate client's billing information: card number, verify funds, etc.
+
+activate Stripe
+Stripe -> billing: Webhook event (`checkout.session.completed`, `customer.subscription.deleted`)
+deactivate Stripe
+billing -> PostgresBilling: Save or Update subscription info
 deactivate PostgresBilling
 activate Kafka
 billing -> Kafka: Emit event `USER_SUBSCRIBED`
@@ -42,6 +48,7 @@ billing -> nginx: 200 OK
 deactivate billing
 nginx -> Client: Successfully subscribed
 deactivate nginx
+Stripe -> Stripe: Recurring charges
 
 activate Kafka
 activate auth
