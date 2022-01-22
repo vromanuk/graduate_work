@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-cri_#g9a&&p=bbt5k4lh@4b8x*o#o-7!2d(0fk72y_-2=r#+&u"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = []
 
@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "subscriptions",
+    "djstripe",
 ]
 
 MIDDLEWARE = [
@@ -121,5 +122,19 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Stripe settings
-STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_TEST_PUBLISHABLE_KEY = os.getenv(
+    "STRIPE_PUBLISHABLE_KEY",
+    "pk_test_51KJIaOCEmLypaydG2biXMNqswoo6oCUSBpgrscm57XTJvZkn8kCIAff1sL2B1sLYb0JRmBTDdc7NpxfnygboUv9o00jqD57W22",
+)
+STRIPE_TEST_SECRET_KEY = os.getenv(
+    "STRIPE_SECRET_KEY",
+    "sk_test_51KJIaOCEmLypaydGw4NYXHsWoOoRIG3BKxdVdmx4P1DjlhjL8ClNms6EuWmBzNzQFqvvYj26TivsuHt3aqSejmRU007Y4U3fCH",
+)
+STRIPE_LIVE_SECRET_KEY = (
+    ""  # NOTE: we're not going to use it, but it's required by djstripe
+)
+STRIPE_LIVE_MODE = False
+
+# djstripe settings
+DJSTRIPE_WEBHOOK_SECRET = "whsec_xxx"  # NOTE: the same as for STRIPE_LIVE_SECRET_KEY
+DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
