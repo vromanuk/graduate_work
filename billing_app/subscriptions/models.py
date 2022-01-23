@@ -18,3 +18,6 @@ class User(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
     )
+
+    def has_active_subscription(self) -> bool:
+        return self.subscription is not None
