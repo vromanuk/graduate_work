@@ -1,0 +1,130 @@
+version: '3.9'
+
+volumes:
+  postgres_auth_data: {}
+  postgres_notifications_data: {}
+  kafka-prod-data: {}
+
+services:
+  redis_auth:
+    image: redis:6
+
+  postgres_auth:
+    image: postgres:14.1
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data/
+    env_file:
+      - ./auth_app/.env
+
+  auth_app: &auth_app
+    container_name: auth_app_backend
+    build:
+      context: .
+      dockerfile: auth_app/Dockerfile
+    restart: always
+    command: gunicorn --worker-class gevent -b :5000 --access-logfile - --error-logfile - patched:"create_app()"
+#    command: gunicorn -b :5000 --access-logfile - --error-logfile - wsgi:"create_app()"
+    env_file:
+      - ./auth_app/.env
+    depends_on:
+      - postgres_auth
+      - redis_auth
+
+  auth-app-kafka-consumer:
+    <<: *auth_app
+    container_name: auth-app-kafka-consumer
+    depends_on:
+      - kafka
+      - zookeeper
+    ports: [ ]
+    command: src/scripts/start_kafka_consumer.sh
+    restart: on-failure
+    env_file:
+      - ./auth_app/.env
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.27
+    ports:
+      - "16686:16686"
+    depends_on:
+      - auth_app
+
+  notifications_app: &django
+    build:
+      context: .
+      dockerfile: notifications_app/compose/local/django/Dockerfile
+    restart: always
+    image: notifications_api_local_django
+    depends_on:
+      - postgres_notifications
+      - redis_notifications
+    env_file:
+      - ./notifications_app/.env-template
+    command: /start
+
+  postgres_notifications:
+    build:
+      context: .
+      dockerfile: notifications_app/compose/production/postgres/Dockerfile
+    image: notifications_api_production_postgres
+    volumes:
+      - postgres_notifications_data:/var/lib/postgresql/data:Z
+    env_file:
+      - ./notifications_app/.env-template
+
+  redis_notifications:
+    image: redis:6
+
+  celeryworker:
+    <<: *django
+    image: notifications_api_production_celeryworker
+    command: /start-celeryworker
+
+  celerybeat:
+    <<: *django
+    image: notifications_api_production_celerybeat
+    command: /start-celerybeat
+
+  flower:
+    <<: *django
+    image: notifications_api_production_flower
+    command: /start-flower
+
+  zookeeper:
+    image: bitnami/zookeeper:3.7.0
+    container_name: zookeeper
+    env_file:
+      - ./notifications_app/.env-prod
+
+  kafka:
+    image: bitnami/kafka:3.0.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9093"
+    volumes:
+      - kafka-prod-data:/data/kafka/
+    env_file:
+      - ./notifications_app/.env-template
+
+  notifications-kafka-consumer:
+    <<: *django
+    image: notifications_api_production_kafka-consumer
+    container_name: notifications-kafka-consumer
+    depends_on:
+      - kafka
+      - zookeeper
+    ports: [ ]
+    restart: on-failure
+    command: /start-kafka-consumer
+    env_file:
+      - ./notifications_app/.env-template
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - notifications_app
+      - auth_app
