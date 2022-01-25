@@ -55,11 +55,13 @@ def initialize_extensions(app) -> None:
 
 
 def initialize_commands(app) -> None:
+    from src.commands.create_default_user import create_default_user
     from src.commands.roles import create_roles
     from src.commands.superuser import create_superuser
 
     app.cli.add_command(create_superuser)
     app.cli.add_command(create_roles)
+    app.cli.add_command(create_default_user)
 
 
 def configure_logging(app: Flask) -> None:

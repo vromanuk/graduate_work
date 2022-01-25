@@ -66,6 +66,12 @@ class Role(Base):
         roles = {
             "User": (Permission.READ_MOVIES | Permission.UPDATE_PERSONAL_INFO, True),
             "Admin": (0xFF, False),
+            "SubscribedUserT1": (
+                Permission.READ_MOVIES
+                | Permission.UPDATE_PERSONAL_INFO
+                | Permission.WATCH_MOVIES,
+                False,
+            ),
         }
 
         with session_scope() as session:
@@ -82,6 +88,11 @@ class Role(Base):
     def fetch(cls, role_id: int):
         with session_scope() as session:
             return session.query(cls).filter_by(id=role_id).first()
+
+    @classmethod
+    def fetch_by_name(cls, name: str):
+        with session_scope() as session:
+            return session.query(cls).filter_by(name=name).first()
 
     @classmethod
     def fetch_all(cls):

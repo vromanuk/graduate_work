@@ -34,30 +34,49 @@ class UserService:
         return True
 
     @classmethod
-    def update_role(cls, user_id: UUID, role_id: int) -> bool:
+    def update_role(
+        cls,
+        user_id: UUID,
+        role_id: Optional[int] = None,
+        subscription: Optional[str] = None,
+    ) -> bool:
+        if not (role_id or subscription):
+            raise ValueError("You must specify either `role_id` or `subscription`")
+
         user = User.find_by_uuid(user_id)
         if not user:
             return False
 
-        role = Role.fetch(role_id)
+        if role_id:
+            role = Role.fetch(role_id)
+        else:
+            role = Role.fetch_by_name(subscription)
         if not role:
             return False
 
         with session_scope() as session:
             session.execute(
-                update(User).where(User.id == user_id).values(role_id=role_id)
+                update(User).where(User.id == user.id).values(role_id=role.id)
             )
 
         return True
 
     @classmethod
-    def reset_role(cls, user_id: UUID) -> bool:
+    def reset_role(cls, user_id: UUID, default=False) -> bool:
         user = User.find_by_uuid(user_id)
         if not user:
             return False
 
         with session_scope() as session:
-            session.execute(update(User).where(User.id == user_id).values(role_id=None))
+            if default:
+                role_id = Role.fetch_default_role()
+                session.execute(
+                    update(User).where(User.id == user_id).values(role_id=role_id)
+                )
+            else:
+                session.execute(
+                    update(User).where(User.id == user_id).values(role_id=None)
+                )
 
         return True
 
