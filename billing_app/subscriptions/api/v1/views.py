@@ -1,12 +1,16 @@
 import json
 import uuid
 from datetime import datetime
+from http import HTTPStatus
 
-from django.db import transaction
-from django.http import HttpRequest, JsonResponse
+import djstripe.models
+import stripe
+from django.conf import settings
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from djstripe.models import Customer, Product, Subscription
+from djstripe.models import Product, Subscription
 
 from subscriptions.models import User
 from subscriptions.services.stripe import StripeService
@@ -21,63 +25,88 @@ def products(request: HttpRequest) -> JsonResponse:
     )
 
 
-def get_user_id_email():
-    # todo: we should get this data from a JWT
-    return uuid.uuid4(), "joe@gmail.com"
+def get_user_id():
+    return uuid.uuid4()
 
 
-# todo: only authenticated users
 @csrf_exempt
 @require_POST
-@transaction.atomic
-def subscribe(request: HttpRequest) -> JsonResponse:
-    user_id, email = get_user_id_email()  # todo: stub
-    payload = json.loads(request.body.decode())
+def create_customer(request: HttpRequest) -> JsonResponse:
+    user_id = get_user_id()
+    payload = json.loads(request.body)
+    try:
+        stripe_customer = StripeService.create_customer(email=payload["email"])
+        customer = djstripe.models.Customer.sync_from_stripe_data(stripe_customer)
+        user, _ = User.objects.get_or_create(id=user_id)
+        user.customer = customer
+        user.save()
+        return JsonResponse(data={"customer": stripe_customer})
+    except Exception as error:
+        return JsonResponse(data={"error": str(error)}, code=HTTPStatus.FORBIDDEN)
 
-    user, _ = User.objects.get_or_create(id=user_id)
-    if user.has_active_subscription():
-        return JsonResponse(
-            data={
-                "message": "The user already subscribed",
-                "user_id": user.id,
-                "customer_id": user.customer_id,
-                "subscription_id": user.subscription_id,
-            }
+
+@csrf_exempt
+def create_checkout_session(request):
+    user_id = get_user_id()
+    if request.method == "GET":
+        domain_url = "http://localhost:8000/api/v1/"
+        stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                success_url=domain_url + "success?session_id={CHECKOUT_SESSION_ID}",
+                cancel_url=domain_url + "cancel/",
+                payment_method_types=["card"],
+                mode="subscription",
+                line_items=[{"price": "price_1KL7emCEmLypaydGDO2u6HvV", "quantity": 1}],
+                customer=User.objects.get(id=user_id).customer_id,
+            )
+            return redirect(checkout_session.url, code=HTTPStatus.SEE_OTHER)
+        except Exception as e:
+            return JsonResponse({"error": str(e)})
+
+
+def success(request: HttpRequest) -> HttpResponse:
+    return render(request, "success.html")
+
+
+def cancel(request: HttpRequest) -> HttpResponse:
+    return render(request, "cancel.html")
+
+
+@csrf_exempt
+def stripe_webhook(request: HttpRequest) -> HttpResponse:
+    stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
+    webhook_secret = settings.DJSTRIPE_WEBHOOK_SECRET
+    payload = request.body
+    sig_header = request.META["HTTP_STRIPE_SIGNATURE"]
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except (ValueError, stripe.error.SignatureVerificationError):
+        return HttpResponse(status=HTTPStatus.BAD_REQUEST)
+
+    payload = json.loads(request.body)
+    data_object = payload["data"]["object"]
+
+    event_type = event["type"]
+    if event_type == "invoice.payment_succeeded":
+        customer_id = data_object["customer"]
+        stripe_subscription = stripe.Subscription.retrieve(data_object["subscription"])
+        subscription = Subscription(
+            id=stripe_subscription.id,
+            customer_id=customer_id,
+            current_period_start=datetime.fromtimestamp(
+                stripe_subscription.current_period_start
+            ),
+            current_period_end=datetime.fromtimestamp(
+                stripe_subscription.current_period_end
+            ),
+            status=stripe_subscription.status,
         )
+        subscription.save()
 
-    if not user.customer_id:
-        customer = StripeService.create_customer(
-            email, payment_method=(payload["payment_method_id"])
-        )
-        djstripe_customer = Customer.sync_from_stripe_data(customer)
-    else:
-        djstripe_customer = Customer.objects.get(id=user.customer_id)
+        user = User.objects.get(customer_id=customer_id)
+        user.subscription = subscription
+        user.save()
 
-    subscription = StripeService.create_subscription(
-        djstripe_customer.id, payload["price_id"]
-    )
-
-    # todo: the next line should work, but it doesn't. It looks like a djstripe bug.
-    # djstripe_subscription = Subscription.sync_from_stripe_data(subscription)
-
-    # todo: workaround for the problem above
-    djstripe_subscription = Subscription(
-        id=subscription.id,
-        customer_id=djstripe_customer.id,
-        current_period_start=datetime.fromtimestamp(subscription.current_period_start),
-        current_period_end=datetime.fromtimestamp(subscription.current_period_end),
-    )
-    djstripe_subscription.save()
-
-    user.customer = djstripe_customer
-    user.subscription = djstripe_subscription
-    user.save()
-
-    return JsonResponse(
-        data={
-            "message": "Ok",
-            "user_id": user.id,
-            "customer_id": user.customer_id,
-            "subscription_id": user.subscription_id,
-        }
-    )
+    return HttpResponse(status=HTTPStatus.OK)

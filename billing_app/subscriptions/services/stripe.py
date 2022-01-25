@@ -20,5 +20,6 @@ class StripeService:
         return stripe.Subscription.create(
             customer=customer_id,
             items=[{"price": price_id}],
+            payment_behavior="default_incomplete",
             expand=["latest_invoice.payment_intent"],
         )
