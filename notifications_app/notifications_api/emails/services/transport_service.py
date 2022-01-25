@@ -19,3 +19,9 @@ class TransportService:
         self, to: str, subject: str, body: str, attachments: str
     ):
         self.transport.send_email_with_attachments(to, subject, body, attachments)
+
+    def send_subscription_letter(
+        self, username: str, send_to: str, subject: str = "", content: str = ""
+    ):
+        """Sends welcome message using transport"""
+        self.transport.send_subscription_letter(username, send_to, subject, content)

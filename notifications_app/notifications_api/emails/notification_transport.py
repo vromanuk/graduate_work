@@ -8,7 +8,7 @@ from notifications_api.apps.admin_emails.utils import render_html_text, render_s
 from notifications_api.emails.email_provider import EmailProvider, get_email_provider
 from notifications_api.emails.schemas import (
     LetterWithAttachmentsSchema,
-    WelcomeLetterSchema,
+    WelcomeLetterSchema, SubscriptionInfoLetterSchema,
 )
 
 env = environ.Env()
@@ -26,6 +26,13 @@ class BaseTransport(abc.ABC):
     @abc.abstractmethod
     def send_email_with_attachments(
         cls, to: str, subject: str, body: str, attachments: str = None
+    ):
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def send_subscription_letter(
+            cls, username: str, send_to: str, subject: str = "", content: str = ""
     ):
         pass
 
@@ -70,3 +77,20 @@ class EmailTransport(BaseTransport):
             attachments=html_message,
         )
         cls.email_provider.send_with_attachments(letter_with_attachments)
+
+    @classmethod
+    def send_subscription_letter(
+            cls, username: str, send_to: str, subject: str = "", content: str = ""
+    ):
+        subject, from_email, to = (
+            subject or "Details about Subscription",
+            env.str("MAILGUN_DOMAIN"),
+            send_to,
+        )
+        text_content = (
+                content or f"{username.capitalize()} привет! Вы успешно оплатили подписку 💸"
+        )
+        subscription_info_letter = SubscriptionInfoLetterSchema(
+            from_email=from_email, to=to, subject=subject, content=text_content
+        )
+        cls.email_provider.send(subscription_info_letter)
