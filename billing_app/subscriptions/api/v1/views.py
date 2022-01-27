@@ -11,7 +11,6 @@ from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from djstripe.models import Product, Subscription
-
 from subscriptions.models import User
 from subscriptions.services.stripe import StripeService
 
@@ -108,5 +107,34 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
         user = User.objects.get(customer_id=customer_id)
         user.subscription = subscription
         user.save()
+        # todo: notify auth service
+    elif event_type == "customer.subscription.deleted":
+        Subscription.objects.filter(id=data_object["subscription"]).delete()
+        # todo: notify auth service
 
     return HttpResponse(status=HTTPStatus.OK)
+
+
+@csrf_exempt
+def cancel_subscription(request: HttpRequest) -> JsonResponse:
+    if request.method == "DELETE":
+        user_id = get_user_id()
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return JsonResponse({"error": "user {0} does not exist".format(user_id)})
+
+        if not user.has_active_subscription():
+            return JsonResponse(
+                {"error": "user {0} does not have active subscription".format(user_id)}
+            )
+
+        try:
+            deleted_subscription = stripe.Subscription.modify(
+                user.subscription_id, cancel_at_period_end=True
+            )
+            return JsonResponse({"subscription": deleted_subscription})
+        except Exception as e:
+            return JsonResponse({"error": str(e), "code": HTTPStatus.FORBIDDEN})
+    return JsonResponse({})
