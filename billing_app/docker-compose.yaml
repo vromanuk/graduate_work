@@ -23,5 +23,12 @@ services:
     volumes:
       - postgres-billing:/var/lib/postgresql/data
 
+  stripe-webhook:
+    image: stripe/stripe-cli:latest
+    container_name: movies-stripe-webhook
+    command: listen --forward-to web:8000/api/v1/webhook/
+    env_file:
+      - .env.dev
+
 volumes:
   postgres-billing:
