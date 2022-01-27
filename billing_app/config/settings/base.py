@@ -138,3 +138,7 @@ STRIPE_LIVE_MODE = False
 # djstripe settings
 DJSTRIPE_WEBHOOK_SECRET = "whsec_cbkiSjmTbvNPw5jyWqum692cHAvvbA0k"
 DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
+
+KAFKA_CONFIG = {
+    'bootstrap.servers': os.getenv("KAFKA_BROKER_URL", "0.0.0.0:9092"),
+}
