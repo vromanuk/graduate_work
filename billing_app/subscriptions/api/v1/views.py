@@ -57,14 +57,13 @@ def create_checkout_session(request):
         domain_url = "http://localhost:8000/api/v1/"
         stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
         try:
-            user, _ = User.objects.get_or_create(id=user_id)
             checkout_session = stripe.checkout.Session.create(
                 success_url=domain_url + "success?session_id={CHECKOUT_SESSION_ID}",
                 cancel_url=domain_url + "cancel/",
                 payment_method_types=["card"],
                 mode="subscription",
                 line_items=[{"price": "price_1KL7emCEmLypaydGDO2u6HvV", "quantity": 1}],
-                customer=user.customer_id,
+                customer=User.objects.get(id=user_id).customer_id,
             )
             return redirect(checkout_session.url, code=HTTPStatus.SEE_OTHER)
         except Exception as e:
@@ -77,6 +76,31 @@ def success(request: HttpRequest) -> HttpResponse:
 
 def cancel(request: HttpRequest) -> HttpResponse:
     return render(request, "cancel.html")
+
+
+@csrf_exempt
+def cancel_subscription(request: HttpRequest) -> JsonResponse:
+    if request.method == "DELETE":
+        user_id = get_user_id()
+
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return JsonResponse({"error": "user {0} does not exist".format(user_id)})
+
+        if not user.has_active_subscription():
+            return JsonResponse(
+                {"error": "user {0} does not have active subscription".format(user_id)}
+            )
+
+        try:
+            deleted_subscription = stripe.Subscription.modify(
+                user.subscription_id, cancel_at_period_end=True
+            )
+            return JsonResponse({"subscription": deleted_subscription})
+        except Exception as e:
+            return JsonResponse({"error": str(e), "code": HTTPStatus.FORBIDDEN})
+    return JsonResponse({})
 
 
 @method_decorator([csrf_exempt, require_POST], name='dispatch')
@@ -184,4 +208,3 @@ class StripeWebhookView(View):
 
 
 stripe_webhook = StripeWebhookView.as_view()
-

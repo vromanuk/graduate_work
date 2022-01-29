@@ -8,5 +8,6 @@ urlpatterns = [
     path("customer/", views.create_customer),
     path("success/", views.success),
     path("cancel/", views.cancel),
+    path("cancel-subscription/", views.cancel_subscription),
     path("webhook/", views.stripe_webhook),
 ]
