@@ -4,10 +4,10 @@ RUN apt update && apt upgrade -y && apt install -y netcat
 
 WORKDIR /app
 
-ADD requirements requirements
+ADD ./billing_app/requirements requirements
 RUN pip3 install --upgrade pip && pip3 install -r requirements/production.txt
 
-ADD . docker-entrypoint.sh ./
+ADD ./billing_app ./billing_app/docker-entrypoint.sh ./
 
 WORKDIR /app
 

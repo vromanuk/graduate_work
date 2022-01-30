@@ -11,7 +11,7 @@ from src.resources.users import UserRole, Users
 
 
 def register_blueprints(app: Flask) -> None:
-    api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
+    api_bp = Blueprint("api", __name__, url_prefix="/auth/api/v1")
     api = Api(api_bp)
 
     # Auth
