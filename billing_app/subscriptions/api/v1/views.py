@@ -16,9 +16,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from djstripe.models import Product, Subscription
 
+from subscriptions.api.enums import KAFKA_TOPICS
 from subscriptions.models import User
 from subscriptions.services import StripeService
-from subscriptions.api.enums import KAFKA_TOPICS
 
 
 def products(request: HttpRequest) -> JsonResponse:
@@ -103,9 +103,32 @@ def cancel_subscription(request: HttpRequest) -> JsonResponse:
     return JsonResponse({})
 
 
-@method_decorator([csrf_exempt, require_POST], name='dispatch')
+@csrf_exempt
+def renew_subscription(request: HttpRequest) -> JsonResponse:
+    user_id = get_user_id()
+    user = User.objects.get(id=user_id)
+
+    if not user.has_active_subscription():
+        return JsonResponse(
+            {"error": "user {0} does not have an active subscription".format(user_id)}
+        )
+
+    if user.subscription.status == "cancelled":
+        stripe_subscription = stripe.Subscription.modify(
+            user.subscription_id, cancel_at_period_end=False
+        )
+        user.subscription.status = stripe_subscription.status
+        user.save()
+        return JsonResponse({"subscription": stripe_subscription})
+
+    return JsonResponse({})
+
+
+@method_decorator([csrf_exempt, require_POST], name="dispatch")
 class StripeWebhookView(View):
-    http_allowed_methods = ["POST", ]
+    http_allowed_methods = [
+        "POST",
+    ]
 
     def event_processor(self, event_type: str) -> Optional[Callable]:
         method_name = event_type.replace(".", "_")
@@ -122,9 +145,7 @@ class StripeWebhookView(View):
         sig_header = request.META["HTTP_STRIPE_SIGNATURE"]
 
         try:
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, webhook_secret
-            )
+            event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
         except (ValueError, stripe.error.SignatureVerificationError) as _:
             return HttpResponse(status=HTTPStatus.BAD_REQUEST)
 
@@ -167,9 +188,10 @@ class StripeWebhookView(View):
             topic=KAFKA_TOPICS.CHECKOUT_SESSION_COMPLETED.value,
             key=f"{KAFKA_TOPICS.CHECKOUT_SESSION_COMPLETED.value}_{subscription.id}_{user.id}",
             data={
-                'user_id': user.id,
-                'customer_id': customer_id,
-            })
+                "user_id": user.id,
+                "customer_id": customer_id,
+            },
+        )
 
         return HttpResponse(status=HTTPStatus.OK)
 
@@ -187,7 +209,8 @@ class StripeWebhookView(View):
         stripe_subscription = stripe.Subscription.retrieve(data_object["subscription"])
 
         subscription, _ = Subscription.objects.get_or_create(
-            id=stripe_subscription.id, customer_id=customer_id)
+            id=stripe_subscription.id, customer_id=customer_id
+        )
         subscription.status = stripe_subscription.status
         subscription.save()
 
@@ -200,9 +223,10 @@ class StripeWebhookView(View):
             topic=KAFKA_TOPICS.INVOICE_PAYMENT_FAILED.value,
             key=f"{KAFKA_TOPICS.INVOICE_PAYMENT_FAILED.value}_{subscription.id}_{user.id}",
             data={
-                'user_id':     user.id,
-                'customer_id': customer_id,
-            })
+                "user_id": user.id,
+                "customer_id": customer_id,
+            },
+        )
 
         return HttpResponse(status=HTTPStatus.OK)
 
