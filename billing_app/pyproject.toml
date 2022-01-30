@@ -10,6 +10,7 @@ Django = "^3.2"
 stripe = "^2.65.0"
 psycopg2-binary = "^2.9.3"
 dj-stripe = "^2.6.0"
+confluent-kafka = "^1.8.2"
 
 [tool.poetry.dev-dependencies]
 
