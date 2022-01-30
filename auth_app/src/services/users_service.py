@@ -15,6 +15,11 @@ from src.database.models import Role, User
 
 class UserService:
     @classmethod
+    def get_user_account_info(cls, current_user_id: UUID.hex) -> User:
+        user = User.find_by_uuid(current_user_id)
+        return user
+
+    @classmethod
     def update(cls, current_user_id: UUID, updated_user: User) -> bool:
         user = User.find_by_uuid(current_user_id)
         if not user:
@@ -112,3 +117,19 @@ class UserService:
         if user := User.find_by_uuid(user_id):
             return user
         return None
+
+    @classmethod
+    def update_subscription(
+        cls,
+        user_id: UUID,
+        expire_date: datetime.datetime,
+        is_active: bool,
+        subscription_name: Optional[str] = None,
+    ):
+        user = User.find_by_uuid(user_id)
+        with session_scope() as session:
+            user.subscription.name = subscription_name or user.subscription.name
+            user.subscription.is_active = is_active
+            user.subscription.expires_at = expire_date
+            session.add(user)
+            session.commit()

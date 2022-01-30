@@ -1,13 +1,22 @@
 import uuid
 from typing import Optional
 
-from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer, String,
-                        UniqueConstraint, or_)
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    or_,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import backref, relationship
 from werkzeug.security import generate_password_hash
 
 from src.database.db import Base, session_scope
+from src.enums import SubscriptionStatus
 from src.permissions import Permission
 
 
@@ -50,6 +59,29 @@ def create_log_history_partition(target, connection, **kw) -> None:
         PARTITION OF "user_sign_in_web" FOR VALUES FROM ('2020-01-01') to ('2021-01-01');
         """
     )
+
+
+class Subscription(Base):
+    __tablename__ = "user_subscriptions"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(64))
+    is_active = Column(Boolean, default=False)
+    expires_at = Column(DateTime)
+    users = relationship("User", back_populates="subscription", lazy="selectin")
+
+    @classmethod
+    def create_default_subscription(cls):
+        with session_scope() as session:
+            subscription = cls(
+                name="Free Tier",
+                expires_at=None,
+            )
+            session.add(subscription)
+            session.commit()
+            subscription_id = subscription.id
+
+            return subscription_id
 
 
 class Role(Base):
@@ -160,6 +192,8 @@ class User(Base):
     role_id = Column(Integer, ForeignKey("roles.id"))
     role = relationship("Role", back_populates="users", lazy="selectin")
     email = Column(String(64), nullable=True)
+    subscription_id = Column(Integer, ForeignKey("user_subscriptions.id"))
+    subscription = relationship("Subscription", back_populates="users", lazy="selectin")
 
     def __init__(
         self, login: str, password: str, email: Optional[str] = None, is_admin=False

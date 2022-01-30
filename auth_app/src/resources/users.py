@@ -8,6 +8,7 @@ from flask_restful import Resource
 from marshmallow import ValidationError
 
 from src.database.db import session_scope
+from src.enums import SubscriptionStatus
 from src.proto import UserInfoRequest, UserInfoResponse, wrap_proto
 from src.schemas.users import UserSchema
 from src.services.auth_service import admin_required
@@ -15,6 +16,19 @@ from src.services.users_service import UserService
 
 
 class Users(Resource):
+    def get(self):
+        current_user_id = get_jwt_identity()
+        user_account_info = UserService.get_user_account_info(current_user_id)
+        return {
+            "id": str(user_account_info.id),
+            "email": user_account_info.email,
+            "role": user_account_info.role.name,
+            "subscription_status": SubscriptionStatus.ACTIVE.value
+            if user_account_info.subscription.is_active
+            else SubscriptionStatus.IDLE.value,
+            "subscription_expire_date": user_account_info.subscription.expires_at,
+        }, HTTPStatus.OK
+
     @wrap_proto(UserInfoResponse)
     @admin_required
     def post(self):

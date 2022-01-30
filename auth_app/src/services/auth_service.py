@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash
 
 from src.database.db import session_scope
-from src.database.models import Role, User
+from src.database.models import Role, User, Subscription
 from src.permissions import Permission
 
 
@@ -16,9 +16,11 @@ class AuthService:
     @classmethod
     def register(cls, user) -> bool:
         default_role_id = Role.fetch_default_role()
+        default_subscription_id = Subscription.create_default_subscription()
         with session_scope() as session:
             try:
                 user.role_id = default_role_id
+                user.subscription_id = default_subscription_id
                 session.add(user)
                 session.commit()
                 return True
