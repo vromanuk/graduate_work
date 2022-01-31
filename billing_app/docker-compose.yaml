@@ -1,0 +1,34 @@
+version: '3'
+
+services:
+  web:
+    build: .
+    image: movies-billing
+    container_name: movies-billing
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    depends_on:
+      - db
+    env_file:
+      - .env.dev
+    ports:
+      - "8000:8000"
+
+  db:
+    image: postgres:13.5
+    container_name: movies-billing-postgres
+    env_file:
+      - .env.dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-billing:/var/lib/postgresql/data
+
+  stripe-webhook:
+    image: stripe/stripe-cli:latest
+    container_name: movies-stripe-webhook
+    command: listen --forward-to web:8000/api/v1/webhook/
+    env_file:
+      - .env.dev
+
+volumes:
+  postgres-billing:

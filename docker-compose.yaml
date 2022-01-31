@@ -3,6 +3,7 @@ version: '3.9'
 volumes:
   postgres_auth_data: {}
   postgres_notifications_data: {}
+  postgres-billing_data: {}
   kafka-prod-data: {}
 
 services:
@@ -123,6 +124,30 @@ services:
     env_file:
       - ./notifications_app/.env-template
 
+  billing_app:
+    build:
+      context: .
+      dockerfile: billing_app/Dockerfile
+    image: movies-billing
+    container_name: movies-billing
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8888
+    depends_on:
+      - postgres_billing
+    env_file:
+      - ./billing_app/.env.dev
+    ports:
+      - "8888:8888"
+
+  postgres_billing:
+    image: postgres:14.1
+    container_name: movies-billing-postgres
+    env_file:
+      - ./billing_app/.env.dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-billing_data:/var/lib/postgresql/data
+
   nginx:
     build: ./nginx
     ports:
@@ -130,3 +155,4 @@ services:
     depends_on:
       - notifications_app
       - auth_app
+      - billing_app
