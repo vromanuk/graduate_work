@@ -17,7 +17,7 @@ from django.views.decorators.http import require_POST
 from djstripe.models import Product, Subscription
 
 from subscriptions.api.enums import KAFKA_TOPICS
-from subscriptions.models import Customer
+from subscriptions.models import BillingCustomer
 from subscriptions.services import StripeService
 
 
@@ -42,12 +42,12 @@ def create_customer(request: HttpRequest) -> JsonResponse:
     try:
         stripe_customer = StripeService.create_customer(email=payload["email"])
         customer = djstripe.models.Customer.sync_from_stripe_data(stripe_customer)
-        user, _ = Customer.objects.get_or_create(id=user_id)
+        user, _ = BillingCustomer.objects.get_or_create(id=user_id)
         user.customer = customer
         user.save()
         return JsonResponse(data={"customer": stripe_customer})
     except Exception as error:
-        return JsonResponse(data={"error": str(error)}, code=HTTPStatus.FORBIDDEN)
+        return JsonResponse(data={"error": str(error)}, status=HTTPStatus.FORBIDDEN)
 
 
 @csrf_exempt
@@ -63,9 +63,9 @@ def create_checkout_session(request):
                 payment_method_types=["card"],
                 mode="subscription",
                 line_items=[{"price": "price_1KL7emCEmLypaydGDO2u6HvV", "quantity": 1}],
-                customer=Customer.objects.get(id=user_id).customer_id,
+                customer=BillingCustomer.objects.get(id=user_id).customer_id,
             )
-            return redirect(checkout_session.url, code=HTTPStatus.SEE_OTHER)
+            return redirect(checkout_session.url, status=HTTPStatus.SEE_OTHER)
         except Exception as e:
             return JsonResponse({"error": str(e)})
 
@@ -84,8 +84,8 @@ def cancel_subscription(request: HttpRequest) -> JsonResponse:
         user_id = get_user_id()
 
         try:
-            user = Customer.objects.get(id=user_id)
-        except Customer.DoesNotExist:
+            user = BillingCustomer.objects.get(id=user_id)
+        except BillingCustomer.DoesNotExist:
             return JsonResponse({"error": "user {0} does not exist".format(user_id)})
 
         if not user.has_active_subscription():
@@ -99,14 +99,14 @@ def cancel_subscription(request: HttpRequest) -> JsonResponse:
             )
             return JsonResponse({"subscription": deleted_subscription})
         except Exception as e:
-            return JsonResponse({"error": str(e), "code": HTTPStatus.FORBIDDEN})
+            return JsonResponse({"error": str(e)}, status=HTTPStatus.FORBIDDEN)
     return JsonResponse({})
 
 
 @csrf_exempt
 def renew_subscription(request: HttpRequest) -> JsonResponse:
     user_id = get_user_id()
-    user = Customer.objects.get(id=user_id)
+    user = BillingCustomer.objects.get(id=user_id)
 
     if not user.has_active_subscription():
         return JsonResponse(
@@ -178,7 +178,7 @@ class StripeWebhookView(View):
         )
         subscription.save()
 
-        user = Customer.objects.get(customer_id=customer_id)
+        user = BillingCustomer.objects.get(customer_id=customer_id)
         user.subscription = subscription
         user.save()
 
@@ -213,15 +213,15 @@ class StripeWebhookView(View):
             id=stripe_subscription.id, customer_id=customer_id
         )
         subscription.status = stripe_subscription.status
-        subscription.current_period_start = datetime.fromtimestamp(
-            stripe_subscription.current_period_start
-        ),
-        subscription.current_period_end = datetime.fromtimestamp(
-            stripe_subscription.current_period_end
-        ),
+        subscription.current_period_start = (
+            datetime.fromtimestamp(stripe_subscription.current_period_start),
+        )
+        subscription.current_period_end = (
+            datetime.fromtimestamp(stripe_subscription.current_period_end),
+        )
         subscription.save()
 
-        user = Customer.objects.filter(customer_id=customer_id).first()
+        user = BillingCustomer.objects.filter(customer_id=customer_id).first()
         if not user:
             # user does not exist
             return HttpResponse(status=HTTPStatus.NOT_FOUND)
@@ -257,7 +257,7 @@ class StripeWebhookView(View):
         subscription.status = stripe_subscription.status
         subscription.save()
 
-        user = Customer.objects.filter(customer_id=customer_id).first()
+        user = BillingCustomer.objects.filter(customer_id=customer_id).first()
         if not user:
             # user does not exist
             return HttpResponse(status=HTTPStatus.NOT_FOUND)
