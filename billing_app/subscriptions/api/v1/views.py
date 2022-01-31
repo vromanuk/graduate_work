@@ -17,7 +17,7 @@ from django.views.decorators.http import require_POST
 from djstripe.models import Product, Subscription
 
 from subscriptions.api.enums import KAFKA_TOPICS
-from subscriptions.models import User
+from subscriptions.models import Customer
 from subscriptions.services import StripeService
 
 
@@ -42,7 +42,7 @@ def create_customer(request: HttpRequest) -> JsonResponse:
     try:
         stripe_customer = StripeService.create_customer(email=payload["email"])
         customer = djstripe.models.Customer.sync_from_stripe_data(stripe_customer)
-        user, _ = User.objects.get_or_create(id=user_id)
+        user, _ = Customer.objects.get_or_create(id=user_id)
         user.customer = customer
         user.save()
         return JsonResponse(data={"customer": stripe_customer})
@@ -63,7 +63,7 @@ def create_checkout_session(request):
                 payment_method_types=["card"],
                 mode="subscription",
                 line_items=[{"price": "price_1KL7emCEmLypaydGDO2u6HvV", "quantity": 1}],
-                customer=User.objects.get(id=user_id).customer_id,
+                customer=Customer.objects.get(id=user_id).customer_id,
             )
             return redirect(checkout_session.url, code=HTTPStatus.SEE_OTHER)
         except Exception as e:
@@ -84,8 +84,8 @@ def cancel_subscription(request: HttpRequest) -> JsonResponse:
         user_id = get_user_id()
 
         try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
+            user = Customer.objects.get(id=user_id)
+        except Customer.DoesNotExist:
             return JsonResponse({"error": "user {0} does not exist".format(user_id)})
 
         if not user.has_active_subscription():
@@ -106,7 +106,7 @@ def cancel_subscription(request: HttpRequest) -> JsonResponse:
 @csrf_exempt
 def renew_subscription(request: HttpRequest) -> JsonResponse:
     user_id = get_user_id()
-    user = User.objects.get(id=user_id)
+    user = Customer.objects.get(id=user_id)
 
     if not user.has_active_subscription():
         return JsonResponse(
@@ -126,9 +126,7 @@ def renew_subscription(request: HttpRequest) -> JsonResponse:
 
 @method_decorator([csrf_exempt, require_POST], name="dispatch")
 class StripeWebhookView(View):
-    http_allowed_methods = [
-        "POST",
-    ]
+    http_allowed_methods = ["POST"]
 
     def event_processor(self, event_type: str) -> Optional[Callable]:
         method_name = event_type.replace(".", "_")
@@ -180,7 +178,7 @@ class StripeWebhookView(View):
         )
         subscription.save()
 
-        user = User.objects.get(customer_id=customer_id)
+        user = Customer.objects.get(customer_id=customer_id)
         user.subscription = subscription
         user.save()
 
@@ -223,7 +221,7 @@ class StripeWebhookView(View):
         ),
         subscription.save()
 
-        user = User.objects.filter(customer_id=customer_id).first()
+        user = Customer.objects.filter(customer_id=customer_id).first()
         if not user:
             # user does not exist
             return HttpResponse(status=HTTPStatus.NOT_FOUND)
@@ -259,7 +257,7 @@ class StripeWebhookView(View):
         subscription.status = stripe_subscription.status
         subscription.save()
 
-        user = User.objects.filter(customer_id=customer_id).first()
+        user = Customer.objects.filter(customer_id=customer_id).first()
         if not user:
             # user does not exist
             return HttpResponse(status=HTTPStatus.NOT_FOUND)
