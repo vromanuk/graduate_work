@@ -142,3 +142,5 @@ DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
 KAFKA_CONFIG = {
     'bootstrap.servers': os.getenv("KAFKA_BROKER_URL", "0.0.0.0:9092"),
 }
+
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")

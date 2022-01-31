@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 from djstripe.models import Product, Subscription
 
 from subscriptions.api.enums import KAFKA_TOPICS
+from subscriptions.api.utils import token_required
 from subscriptions.models import BillingCustomer
 from subscriptions.services import StripeService
 
@@ -32,6 +33,11 @@ def products(request: HttpRequest) -> JsonResponse:
 
 def get_user_id():
     return uuid.uuid4()
+
+
+@token_required
+def smoke(request):
+    return JsonResponse(data={"msg": "OK", 'user': request.user_id})
 
 
 @csrf_exempt

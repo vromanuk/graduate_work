@@ -230,13 +230,13 @@ class User(Base):
 
 class LogHistory(Base):
     __tablename__ = "log_history"
-    _table_args__ = (
-        UniqueConstraint("id", "user_device_type"),
-        {
-            "postgresql_partition_by": "LIST (user_device_type)",
-            "listeners": [("after_create", create_log_history_partition)],
-        },
-    )
+    # _table_args__ = (
+    #     UniqueConstraint("id", "user_device_type"),
+    #     {
+    #         "postgresql_partition_by": "LIST (user_device_type)",
+    #         "listeners": [("after_create", create_log_history_partition)],
+    #     },
+    # )
     id = Column(
         UUID(as_uuid=True),
         primary_key=True,
@@ -246,7 +246,7 @@ class LogHistory(Base):
     )
     logged_at = Column(DateTime, nullable=False, index=True)
     user_agent = Column(String, nullable=False)
-    user_device_type = Column(String, primary_key=True)
+    # user_device_type = Column(String, primary_key=True)
     ip = Column(String, nullable=False)
     refresh_token = Column(String, nullable=False)
     expires_at = Column(DateTime, nullable=False)

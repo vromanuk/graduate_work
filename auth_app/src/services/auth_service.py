@@ -41,11 +41,11 @@ class AuthService:
         access_token = create_access_token(
             identity=user.id, additional_claims=additional_claims
         )
-        refresh_token = create_refresh_token(identity=user.id)
+        refresh_token = create_refresh_token(identity=str(user.id))
         token = {
             "access_token": access_token,
             "refresh_token": refresh_token,
-            "user_id": user.id,
+            "user_id": str(user.id),
         }
         return True, token
 
