@@ -2,18 +2,22 @@ version: '3'
 
 services:
   web:
-    build: .
+    build:
+      context: ../
+      dockerfile: ./billing_app/Dockerfile
     image: movies-billing
     container_name: movies-billing
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
     depends_on:
-      - db
+      - postgres_billing
     env_file:
       - .env.dev
     ports:
       - "8000:8000"
 
-  db:
+  postgres_billing:
     image: postgres:13.5
     container_name: movies-billing-postgres
     env_file:
