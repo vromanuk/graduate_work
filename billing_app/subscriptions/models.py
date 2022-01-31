@@ -1,7 +1,7 @@
 from django.db import models
 
 
-class Customer(models.Model):
+class BillingCustomer(models.Model):
     id = models.UUIDField(primary_key=True)
     customer = models.ForeignKey(
         "djstripe.Customer",
