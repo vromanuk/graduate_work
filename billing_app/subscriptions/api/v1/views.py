@@ -6,7 +6,6 @@ from typing import Callable, Optional
 
 import djstripe.models
 import stripe
-from confluent_kafka import Producer
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -19,7 +18,7 @@ from djstripe.models import Product, Subscription
 from subscriptions.api.enums import KAFKA_TOPICS
 from subscriptions.api.utils import token_required
 from subscriptions.models import BillingCustomer
-from subscriptions.services import StripeService
+from subscriptions.services import KafkaService, StripeService
 
 
 def products(request: HttpRequest) -> JsonResponse:
@@ -103,6 +102,20 @@ def cancel_subscription(request: HttpRequest) -> JsonResponse:
             deleted_subscription = stripe.Subscription.modify(
                 user.subscription_id, cancel_at_period_end=True
             )
+
+            kafka_producer = KafkaService.get_producer()
+            kafka_producer.produce(
+                topic=KAFKA_TOPICS.USER_UNSUBSCRIBED.value,
+                value=str({
+                    "user_id":                  user_id,
+                    "subcription":              deleted_subscription.plan.product.name \
+                                                    if deleted_subscription.plan and deleted_subscription.plan.product else None,
+                    "email":                    request.user_email,
+                    "subscription_expire_date": deleted_subscription.cancel_at,
+                }),
+                key=f"billing_{deleted_subscription.id}_{user_id}"
+            )
+
             return JsonResponse({"subscription": deleted_subscription})
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=HTTPStatus.FORBIDDEN)
@@ -139,7 +152,7 @@ class StripeWebhookView(View):
         return getattr(self, method_name, None)
 
     def send_to_kafka(self, topic, key: str, data: dict):
-        kafka_producer = Producer(**settings.KAFKA_CONFIG)
+        kafka_producer = KafkaService.get_producer()
         kafka_producer.produce(topic=topic, value=str(data), key=key)
 
     def post(self, request: HttpRequest) -> HttpResponse:
@@ -189,11 +202,14 @@ class StripeWebhookView(View):
         user.save()
 
         self.send_to_kafka(
-            topic=KAFKA_TOPICS.CHECKOUT_SESSION_COMPLETED.value,
-            key=f"{KAFKA_TOPICS.CHECKOUT_SESSION_COMPLETED.value}_{subscription.id}_{user.id}",
+            topic=KAFKA_TOPICS.USER_SUBSCRIBED.value,
+            key=f"{KAFKA_TOPICS.USER_SUBSCRIBED.value}_{subscription.id}_{user.id}",
             data={
-                "user_id": user.id,
-                "customer_id": customer_id,
+                "user_id":                  user.id,
+                "subcription":              subscription.plan.product.name \
+                                                if subscription.plan and subscription.plan.product else None,
+                "email":                    self.request.user_email,
+                "subscription_expire_date": subscription.cancel_at,
             },
         )
 
@@ -236,8 +252,11 @@ class StripeWebhookView(View):
             topic=KAFKA_TOPICS.INVOICE_PAID.value,
             key=f"{KAFKA_TOPICS.INVOICE_PAID.value}_{subscription.id}_{user.id}",
             data={
-                "user_id": user.id,
-                "customer_id": customer_id,
+                "user_id":                  user.id,
+                "subcription":              subscription.plan.product.name \
+                                                if subscription.plan and subscription.plan.product else None,
+                "email":                    self.request.user_email,
+                "subscription_expire_date": subscription.cancel_at,
             },
         )
         return HttpResponse(status=HTTPStatus.OK)
@@ -272,8 +291,11 @@ class StripeWebhookView(View):
             topic=KAFKA_TOPICS.INVOICE_PAYMENT_FAILED.value,
             key=f"{KAFKA_TOPICS.INVOICE_PAYMENT_FAILED.value}_{subscription.id}_{user.id}",
             data={
-                "user_id": user.id,
-                "customer_id": customer_id,
+                "user_id":                  user.id,
+                "subcription":              subscription.plan.product.name \
+                                                if subscription.plan and subscription.plan.product else None,
+                "email":                    self.request.user_email,
+                "subscription_expire_date": subscription.cancel_at,
             },
         )
 

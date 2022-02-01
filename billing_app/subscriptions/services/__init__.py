@@ -1,2 +1,2 @@
 from .stripe import StripeService
-# from .kafka import KafkaService
+from .kafka import KafkaService
