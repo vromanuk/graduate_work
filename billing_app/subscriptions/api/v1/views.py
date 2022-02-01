@@ -36,7 +36,7 @@ def get_user_id():
 
 @token_required
 def smoke(request):
-    return JsonResponse(data={"msg": "OK", 'user': request.user_id})
+    return JsonResponse(data={"msg": "OK", "user": request.user_id})
 
 
 @csrf_exempt
@@ -106,14 +106,18 @@ def cancel_subscription(request: HttpRequest) -> JsonResponse:
             kafka_producer = KafkaService.get_producer()
             kafka_producer.produce(
                 topic=KAFKA_TOPICS.USER_UNSUBSCRIBED.value,
-                value=str({
-                    "user_id":                  user_id,
-                    "subcription":              deleted_subscription.plan.product.name \
-                                                    if deleted_subscription.plan and deleted_subscription.plan.product else None,
-                    "email":                    request.user_email,
-                    "subscription_expire_date": deleted_subscription.cancel_at,
-                }),
-                key=f"billing_{deleted_subscription.id}_{user_id}"
+                value=str(
+                    {
+                        "user_id": user_id,
+                        "subcription": deleted_subscription.plan.product.name
+                        if deleted_subscription.plan
+                        and deleted_subscription.plan.product
+                        else None,
+                        "email": request.user_email,
+                        "subscription_expire_date": deleted_subscription.cancel_at,
+                    }
+                ),
+                key=f"billing_{deleted_subscription.id}_{user_id}",
             )
 
             return JsonResponse({"subscription": deleted_subscription})
@@ -205,10 +209,11 @@ class StripeWebhookView(View):
             topic=KAFKA_TOPICS.USER_SUBSCRIBED.value,
             key=f"{KAFKA_TOPICS.USER_SUBSCRIBED.value}_{subscription.id}_{user.id}",
             data={
-                "user_id":                  user.id,
-                "subcription":              subscription.plan.product.name \
-                                                if subscription.plan and subscription.plan.product else None,
-                "email":                    self.request.user_email,
+                "user_id": user.id,
+                "subcription": subscription.plan.product.name
+                if subscription.plan and subscription.plan.product
+                else None,
+                "email": self.request.user_email,
                 "subscription_expire_date": subscription.cancel_at,
             },
         )
@@ -252,10 +257,11 @@ class StripeWebhookView(View):
             topic=KAFKA_TOPICS.INVOICE_PAID.value,
             key=f"{KAFKA_TOPICS.INVOICE_PAID.value}_{subscription.id}_{user.id}",
             data={
-                "user_id":                  user.id,
-                "subcription":              subscription.plan.product.name \
-                                                if subscription.plan and subscription.plan.product else None,
-                "email":                    self.request.user_email,
+                "user_id": user.id,
+                "subcription": subscription.plan.product.name
+                if subscription.plan and subscription.plan.product
+                else None,
+                "email": self.request.user_email,
                 "subscription_expire_date": subscription.cancel_at,
             },
         )
@@ -291,10 +297,11 @@ class StripeWebhookView(View):
             topic=KAFKA_TOPICS.INVOICE_PAYMENT_FAILED.value,
             key=f"{KAFKA_TOPICS.INVOICE_PAYMENT_FAILED.value}_{subscription.id}_{user.id}",
             data={
-                "user_id":                  user.id,
-                "subcription":              subscription.plan.product.name \
-                                                if subscription.plan and subscription.plan.product else None,
-                "email":                    self.request.user_email,
+                "user_id": user.id,
+                "subcription": subscription.plan.product.name
+                if subscription.plan and subscription.plan.product
+                else None,
+                "email": self.request.user_email,
                 "subscription_expire_date": subscription.cancel_at,
             },
         )
