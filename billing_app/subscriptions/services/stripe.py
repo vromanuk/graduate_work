@@ -1,7 +1,6 @@
 import stripe
 from django.conf import settings
 from stripe.api_resources.customer import Customer
-from stripe.api_resources.subscription import Subscription
 
 
 class StripeService:

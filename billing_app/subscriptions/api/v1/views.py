@@ -59,7 +59,7 @@ def create_customer(request: HttpRequest) -> JsonResponse:
 def create_checkout_session(request):
     user_id = get_user_id()
     if request.method == "GET":
-        domain_url = "http://localhost:8000/api/v1/"
+        domain_url = settings.BASE_API_URL
         stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
         try:
             checkout_session = stripe.checkout.Session.create(
@@ -151,14 +151,6 @@ def renew_subscription(request: HttpRequest) -> JsonResponse:
 class StripeWebhookView(View):
     http_allowed_methods = ["POST"]
 
-    def event_processor(self, event_type: str) -> Optional[Callable]:
-        method_name = event_type.replace(".", "_")
-        return getattr(self, method_name, None)
-
-    def send_to_kafka(self, topic, key: str, data: dict):
-        kafka_producer = KafkaService.get_producer()
-        kafka_producer.produce(topic=topic, value=str(data), key=key)
-
     def post(self, request: HttpRequest) -> HttpResponse:
         stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
         webhook_secret = settings.DJSTRIPE_WEBHOOK_SECRET
@@ -173,21 +165,63 @@ class StripeWebhookView(View):
         data_object = event.get("data", {}).get("object", {})
         event_type = event.get("type", "")
 
-        event_processor = self.event_processor(event_type)
-        response = HttpResponse(status=HTTPStatus.OK)
-        if event_processor:
-            response = event_processor(data_object)
-        return response
+        subscription_updater = self.subscription_updater(event_type)
+        if not subscription_updater:
+            return HttpResponse(status=HTTPStatus.OK)
 
-    def checkout_session_completed(self, data_object: dict) -> HttpResponse:
+        customer_id = data_object.get("customer", None)
+        if not customer_id:
+            # customer is not provided
+            return HttpResponse(status=HTTPStatus.NOT_FOUND)
+
+        subscription_object = data_object.get("subscription", None)
+        if not subscription_object:
+            # subscription is not provided
+            return HttpResponse(status=HTTPStatus.NOT_FOUND)
+
+        stripe_subscription = stripe.Subscription.retrieve(subscription_object)
+        if not stripe_subscription:
+            # stripe subscription is not found
+            return HttpResponse(status=HTTPStatus.NOT_FOUND)
+
+        billing_user = BillingCustomer.objects.filter(customer_id=customer_id).first()
+        if not billing_user:
+            # user does not exist
+            return HttpResponse(status=HTTPStatus.NOT_FOUND)
+
+        subscription = subscription_updater(customer_id, stripe_subscription)
+        billing_user.subscription = subscription
+        billing_user.save()
+
+        kafka_producer = KafkaService.get_producer()
+        kafka_producer.produce(
+            topic=KAFKA_TOPICS.INVOICE_PAID.value,
+            key=f"{KAFKA_TOPICS.INVOICE_PAID.value}_{subscription.id}_{billing_user.id}",
+            data={
+                "user_id":                  billing_user.id,
+                "subscription":             subscription.plan.product.name
+                                            if subscription.plan and subscription.plan.product
+                                            else None,
+                "email":                    self.request.user_email,
+                "subscription_expire_date": subscription.cancel_at,
+            }
+        )
+        return HttpResponse(status=HTTPStatus.OK)
+
+    def subscription_updater(self, event_type: str) -> Optional[Callable]:
+        """
+        Update subscription based on different subscription events.
+        Parameter event_type is subscription's event name e.g. invoice.paid.
+        We get a corresponding method by replacing dots with underscores.
+        """
+        method_name = event_type.replace(".", "_")
+        return getattr(self, method_name, None)
+
+    def checkout_session_completed(self, customer_id, stripe_subscription) -> Subscription:
         """
         Payment is successful and the subscription is created.
         Save customer_id and create subscription.
         """
-
-        customer_id = data_object["customer"]
-        stripe_subscription = stripe.Subscription.retrieve(data_object["subscription"])
-
         subscription = Subscription(
             id=stripe_subscription.id,
             customer_id=customer_id,
@@ -200,42 +234,12 @@ class StripeWebhookView(View):
             status=stripe_subscription.status,
         )
         subscription.save()
+        return subscription
 
-        user = BillingCustomer.objects.get(customer_id=customer_id)
-        user.subscription = subscription
-        user.save()
-
-        self.send_to_kafka(
-            topic=KAFKA_TOPICS.USER_SUBSCRIBED.value,
-            key=f"{KAFKA_TOPICS.USER_SUBSCRIBED.value}_{subscription.id}_{user.id}",
-            data={
-                "user_id": user.id,
-                "subscription": subscription.plan.product.name
-                if subscription.plan and subscription.plan.product
-                else None,
-                "email": self.request.user_email,
-                "subscription_expire_date": subscription.cancel_at,
-            },
-        )
-
-        return HttpResponse(status=HTTPStatus.OK)
-
-    def invoice_paid(self, data_object: dict):
+    def invoice_paid(self, customer_id, stripe_subscription) -> Subscription:
         """
         Subscription is being paid.
         """
-        customer_id = data_object.get("customer", None)
-        if not customer_id:
-            # customer doesn't exist
-            return HttpResponse(status=HTTPStatus.NOT_FOUND)
-
-        subscription_object = data_object.get("subscription", None)
-        if not subscription_object:
-            # subscription is not provied
-            return HttpResponse(status=HTTPStatus.NOT_FOUND)
-
-        stripe_subscription = stripe.Subscription.retrieve(subscription_object)
-
         subscription, _ = Subscription.objects.get_or_create(
             id=stripe_subscription.id, customer_id=customer_id
         )
@@ -247,66 +251,18 @@ class StripeWebhookView(View):
             datetime.fromtimestamp(stripe_subscription.current_period_end),
         )
         subscription.save()
+        return subscription
 
-        user = BillingCustomer.objects.filter(customer_id=customer_id).first()
-        if not user:
-            # user does not exist
-            return HttpResponse(status=HTTPStatus.NOT_FOUND)
-
-        self.send_to_kafka(
-            topic=KAFKA_TOPICS.INVOICE_PAID.value,
-            key=f"{KAFKA_TOPICS.INVOICE_PAID.value}_{subscription.id}_{user.id}",
-            data={
-                "user_id": user.id,
-                "subscription": subscription.plan.product.name
-                if subscription.plan and subscription.plan.product
-                else None,
-                "email": self.request.user_email,
-                "subscription_expire_date": subscription.cancel_at,
-            },
-        )
-        return HttpResponse(status=HTTPStatus.OK)
-
-    def invoice_payment_failed(self, data_object: dict) -> HttpResponse:
+    def invoice_payment_failed(self, customer_id, stripe_subscription) -> Subscription:
         """
         Payment failed.
         """
-        customer_id = data_object.get("customer", None)
-        if not customer_id:
-            return HttpResponse(status=HTTPStatus.NOT_FOUND)
-
-        subscription_object = data_object.get("subscription", None)
-        if not subscription_object:
-            # subscription is not provied
-            return HttpResponse(status=HTTPStatus.NOT_FOUND)
-
-        stripe_subscription = stripe.Subscription.retrieve(subscription_object)
-
         subscription, _ = Subscription.objects.get_or_create(
             id=stripe_subscription.id, customer_id=customer_id
         )
         subscription.status = stripe_subscription.status
         subscription.save()
-
-        user = BillingCustomer.objects.filter(customer_id=customer_id).first()
-        if not user:
-            # user does not exist
-            return HttpResponse(status=HTTPStatus.NOT_FOUND)
-
-        self.send_to_kafka(
-            topic=KAFKA_TOPICS.INVOICE_PAYMENT_FAILED.value,
-            key=f"{KAFKA_TOPICS.INVOICE_PAYMENT_FAILED.value}_{subscription.id}_{user.id}",
-            data={
-                "user_id": user.id,
-                "subscription": subscription.plan.product.name
-                if subscription.plan and subscription.plan.product
-                else None,
-                "email": self.request.user_email,
-                "subscription_expire_date": subscription.cancel_at,
-            },
-        )
-
-        return HttpResponse(status=HTTPStatus.OK)
+        return subscription
 
 
 stripe_webhook = StripeWebhookView.as_view()
