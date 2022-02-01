@@ -210,7 +210,7 @@ class StripeWebhookView(View):
             key=f"{KAFKA_TOPICS.USER_SUBSCRIBED.value}_{subscription.id}_{user.id}",
             data={
                 "user_id": user.id,
-                "subcription": subscription.plan.product.name
+                "subscription": subscription.plan.product.name
                 if subscription.plan and subscription.plan.product
                 else None,
                 "email": self.request.user_email,
@@ -258,7 +258,7 @@ class StripeWebhookView(View):
             key=f"{KAFKA_TOPICS.INVOICE_PAID.value}_{subscription.id}_{user.id}",
             data={
                 "user_id": user.id,
-                "subcription": subscription.plan.product.name
+                "subscription": subscription.plan.product.name
                 if subscription.plan and subscription.plan.product
                 else None,
                 "email": self.request.user_email,
@@ -298,7 +298,7 @@ class StripeWebhookView(View):
             key=f"{KAFKA_TOPICS.INVOICE_PAYMENT_FAILED.value}_{subscription.id}_{user.id}",
             data={
                 "user_id": user.id,
-                "subcription": subscription.plan.product.name
+                "subscription": subscription.plan.product.name
                 if subscription.plan and subscription.plan.product
                 else None,
                 "email": self.request.user_email,
