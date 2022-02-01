@@ -5,7 +5,7 @@ from notifications_api.kafka.tasks import send_subscription_details_task
 
 
 class UserSubscribedEventHandler(BaseKafkaHandler):
-    topic = "user_subscribed"
+    topic = "billing_user_subscribed"
 
     @classmethod
     def handle(cls, body):
@@ -20,7 +20,7 @@ class UserSubscribedEventHandler(BaseKafkaHandler):
 
 
 class UserUnsubscribedEventHandler(BaseKafkaHandler):
-    topic = "user_unsubscribed"
+    topic = "billing_user_unsubscribed"
 
     @classmethod
     def handle(cls, body):

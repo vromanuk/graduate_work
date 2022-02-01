@@ -37,7 +37,7 @@ class AuthService:
         if not user or not check_password_hash(user.password, password):
             return False, None
 
-        additional_claims = {"perm": user.role.permissions}
+        additional_claims = {"perm": user.role.permissions, "user_email": user.email}
         access_token = create_access_token(
             identity=user.id, additional_claims=additional_claims
         )

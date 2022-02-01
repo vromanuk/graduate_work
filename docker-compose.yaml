@@ -97,7 +97,7 @@ services:
     image: bitnami/zookeeper:3.7.0
     container_name: zookeeper
     env_file:
-      - ./notifications_app/.env-prod
+      - ./notifications_app/.env-template
 
   kafka:
     image: bitnami/kafka:3.0.0

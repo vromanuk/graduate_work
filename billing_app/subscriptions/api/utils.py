@@ -21,6 +21,7 @@ def token_required(func):
                 {"message": "Invalid Token"}, status=http.HTTPStatus.BAD_REQUEST
             )
         request.user_id = payload["sub"]
+        request.user_email = payload["user_email"]
         return func(request, *args, **kwargs)
 
     return wrapper
