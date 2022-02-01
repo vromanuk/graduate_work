@@ -47,8 +47,6 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:1.27
-    ports:
-      - "16686:16686"
     depends_on:
       - auth_app
 
@@ -104,8 +102,6 @@ services:
     container_name: kafka
     depends_on:
       - zookeeper
-    ports:
-      - "9093:9093"
     volumes:
       - kafka-prod-data:/data/kafka/
     env_file:
@@ -135,16 +131,12 @@ services:
       - postgres_billing
     env_file:
       - ./billing_app/.env.dev
-    ports:
-      - "8888:8888"
 
   postgres_billing:
     image: postgres:14.1
     container_name: movies-billing-postgres
     env_file:
       - ./billing_app/.env.dev
-    ports:
-      - "5432:5432"
     volumes:
       - postgres-billing_data:/var/lib/postgresql/data
 
