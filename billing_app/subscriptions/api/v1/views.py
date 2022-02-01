@@ -1,10 +1,8 @@
-import json
 import uuid
 from datetime import datetime
 from http import HTTPStatus
 from typing import Callable, Optional
 
-import djstripe.models
 import stripe
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -42,17 +40,25 @@ def smoke(request):
 @csrf_exempt
 @require_POST
 def create_customer(request: HttpRequest) -> JsonResponse:
-    user_id = get_user_id()
-    payload = json.loads(request.body)
+    # todo: get from token
+    request.user_id = get_user_id()
+    request.email = "joe@gmail.com"
+
     try:
-        stripe_customer = StripeService.create_customer(email=payload["email"])
-        customer = djstripe.models.Customer.sync_from_stripe_data(stripe_customer)
-        user, _ = BillingCustomer.objects.get_or_create(id=user_id)
-        user.customer = customer
-        user.save()
-        return JsonResponse(data={"customer": stripe_customer})
+        customer = BillingCustomer.objects.filter(id=request.user_id)
+        if not customer.exists():
+            stripe_customer = StripeService.create_customer(request.email)
+            customer = BillingCustomer.from_stripe_customer(
+                request.user_id, stripe_customer
+            )
+        else:
+            customer = customer.first()
     except Exception as error:
         return JsonResponse(data={"error": str(error)}, status=HTTPStatus.FORBIDDEN)
+
+    return JsonResponse(
+        data={"user_id": customer.id, "customer_id": customer.customer_id}
+    )
 
 
 @csrf_exempt
