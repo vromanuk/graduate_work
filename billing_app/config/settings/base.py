@@ -139,8 +139,11 @@ STRIPE_LIVE_MODE = False
 DJSTRIPE_WEBHOOK_SECRET = "whsec_cbkiSjmTbvNPw5jyWqum692cHAvvbA0k"
 DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
 
+# Custom
+DOMAIN_URL = os.getenv("DOMAIN_URL", "http://localhost:8000")
+BASE_API_URL = f"{DOMAIN_URL}/api/v1/"
+
 KAFKA_CONFIG = {
     'bootstrap.servers': os.getenv("KAFKA_BROKER_URL", "0.0.0.0:9092"),
 }
-
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
