@@ -1,9 +1,9 @@
 import http
 from functools import wraps
 
+import jwt
 from django.conf import settings
 from django.http import JsonResponse
-import jwt
 
 
 def token_required(func):
