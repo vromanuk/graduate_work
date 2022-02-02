@@ -38,9 +38,8 @@ def smoke(request):
 
 
 @csrf_exempt
+@token_required
 def create_checkout_session(request):
-    # todo: get from token
-    request.user_id = get_user_id()
     if request.method == "GET":
         domain_url = settings.BASE_API_URL
         stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
@@ -69,17 +68,13 @@ def cancel(request: HttpRequest) -> HttpResponse:
     return render(request, "cancel.html")
 
 
-@method_decorator([csrf_exempt], name="dispatch")
+@method_decorator([csrf_exempt, token_required], name="dispatch")
 class Customer(View):
     def post(self, request: HttpRequest) -> JsonResponse:
-        # todo: get from token
-        request.user_id = get_user_id()
-        request.email = "joe@gmail.com"
-
         try:
             queryset = BillingCustomer.objects.filter(id=request.user_id)
             if not queryset.exists():
-                stripe_customer = StripeService.create_customer(request.email)
+                stripe_customer = StripeService.create_customer(request.user_email)
                 customer = BillingCustomer.from_stripe_customer(
                     request.user_id, stripe_customer
                 )
@@ -99,15 +94,11 @@ class Customer(View):
             )
 
 
-@method_decorator([csrf_exempt], name="dispatch")
+@method_decorator([csrf_exempt, token_required], name="dispatch")
 class SubscriptionApi(View):
     http_method_names = ["post", "delete"]
 
     def post(self, request: HttpRequest) -> JsonResponse:
-        # todo: get from token
-        request.user_id = get_user_id()
-        request.empail = "joe@gmail.com"
-
         billing_customer = BillingCustomer.objects.get(id=request.user_id)
         if not billing_customer.has_active_subscription():
             return JsonResponse(
@@ -134,10 +125,6 @@ class SubscriptionApi(View):
         return JsonResponse({})
 
     def delete(self, request: HttpRequest) -> JsonResponse:
-        # todo: get from token
-        request.user_id = get_user_id()
-        request.empail = "joe@gmail.com"
-
         queryset = BillingCustomer.objects.filter(id=request.user_id)
         if not queryset.exists():
             return JsonResponse(
@@ -168,7 +155,7 @@ class SubscriptionApi(View):
                         "user_id": request.user_id,
                         "subcription": deleted_subscription.plan.product.name  # todo: 'str' object has no attribute 'name'
                         if deleted_subscription.plan
-                           and deleted_subscription.plan.product
+                        and deleted_subscription.plan.product
                         else None,
                         "email": request.user_email,
                         "subscription_expire_date": deleted_subscription.cancel_at,
