@@ -31,3 +31,6 @@
 }'`
 
 Для проверки нотификаций, нужно добавить email в mailgun `Authorized Recipients`.
+
+- Страница аккаунта пользователя `curl --location --request GET 'http://localhost/auth/api/v1/users/' \
+--header 'Authorization: Bearer {TOKEN}'`
