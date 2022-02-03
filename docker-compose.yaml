@@ -25,7 +25,7 @@ services:
       context: .
       dockerfile: auth_app/Dockerfile
     restart: always
-    command: gunicorn --worker-class gevent -b :5000 --access-logfile - --error-logfile - patched:"create_app()"
+    command: bash -c "flask create-roles && gunicorn --worker-class gevent -b :5000 --access-logfile - --error-logfile - patched:'create_app()'"
 #    command: gunicorn -b :5000 --access-logfile - --error-logfile - wsgi:"create_app()"
     env_file:
       - ./auth_app/.env-sample
