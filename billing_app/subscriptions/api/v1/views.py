@@ -41,7 +41,7 @@ def smoke(request):
 @token_required
 def create_checkout_session(request):
     if request.method == "GET":
-        domain_url = settings.BASE_API_URL
+        domain_url = 'http://localhost/api/v1/'
         stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
         try:
             checkout_session = stripe.checkout.Session.create(
@@ -52,7 +52,8 @@ def create_checkout_session(request):
                 line_items=[{"price": "price_1KL7emCEmLypaydGDO2u6HvV", "quantity": 1}],
                 customer=BillingCustomer.objects.get(id=request.user_id).customer_id,
             )
-            return redirect(checkout_session.url, status=HTTPStatus.SEE_OTHER)
+            # return redirect(checkout_session.url, status=HTTPStatus.SEE_OTHER)
+            return JsonResponse({'checkout_session_url': checkout_session.url})
         except Exception as e:
             return JsonResponse(
                 {"message": str(e), "user_id": request.user_id},
@@ -223,7 +224,7 @@ class StripeWebhookView(View):
                 "subscription": subscription.plan.product.name
                 if subscription.plan and subscription.plan.product
                 else None,
-                "email": self.request.user_email,
+                # "email": billing_user.email,  # todo
                 "subscription_expire_date": subscription.cancel_at,
             },
         )
