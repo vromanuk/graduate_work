@@ -8,7 +8,7 @@
 `make docker-up`
 
 Для проверки правильной работы сервиса, необходимо выполнить следующие команды:
-- `http://localhost/api/v1/smoke/` - проверка работы `auth_app`
+- `http://localhost/auth/api/v1/smoke/` - проверка работы `auth_app`
 - `http://localhost/smoke/` - проверка работы `notifications_app`
 
 Для остановки, воспользуйтесь командой:
