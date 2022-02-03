@@ -15,7 +15,7 @@ services:
     volumes:
       - postgres_auth_data:/var/lib/postgresql/data/
     env_file:
-      - ./auth_app/.env
+      - ./auth_app/.env-sample
     ports:
       - "5433:5432"
 
@@ -28,7 +28,7 @@ services:
     command: gunicorn --worker-class gevent -b :5000 --access-logfile - --error-logfile - patched:"create_app()"
 #    command: gunicorn -b :5000 --access-logfile - --error-logfile - wsgi:"create_app()"
     env_file:
-      - ./auth_app/.env
+      - ./auth_app/.env-sample
     depends_on:
       - postgres_auth
       - redis_auth
@@ -43,7 +43,7 @@ services:
     command: src/scripts/start_kafka_consumer.sh
     restart: on-failure
     env_file:
-      - ./auth_app/.env
+      - ./auth_app/.env-sample
 
   jaeger:
     image: jaegertracing/all-in-one:1.27
