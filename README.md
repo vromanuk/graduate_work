@@ -14,3 +14,20 @@
 
 Для остановки, воспользуйтесь командой:
 `make docker-down`
+
+Для прохождения стандартного флоу, воспользуйтесь следующими командами:
+- Регистрация `curl --location --request POST 'http://localhost/auth/api/v1/register' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "login": "",
+    "email": "",
+    "password": ""
+}'`
+- Логин `curl --location --request POST 'http://localhost/auth/api/v1/login' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "login": "",
+    "password": ""
+}'`
+
+Для проверки нотификаций, нужно добавить email в mailgun `Authorized Recipients`.
