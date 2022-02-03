@@ -16,6 +16,7 @@ from src.services.users_service import UserService
 
 
 class Users(Resource):
+    @jwt_required()
     def get(self):
         current_user_id = get_jwt_identity()
         user_account_info = UserService.get_user_account_info(current_user_id)
