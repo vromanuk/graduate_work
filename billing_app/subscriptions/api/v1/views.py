@@ -77,7 +77,7 @@ class Customer(View):
             if not queryset.exists():
                 stripe_customer = StripeService.create_customer(request.user_email)
                 customer = BillingCustomer.from_stripe_customer(
-                    request.user_id, stripe_customer
+                    request.user_id, request.user_email, stripe_customer
                 )
             else:
                 customer = queryset.first()

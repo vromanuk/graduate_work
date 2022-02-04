@@ -7,6 +7,7 @@ from django.db import models
 
 class BillingCustomer(models.Model):
     id = models.UUIDField(primary_key=True)
+    email = models.EmailField()
     customer = models.ForeignKey(
         "djstripe.Customer",
         to_field="id",
@@ -24,12 +25,14 @@ class BillingCustomer(models.Model):
 
     @classmethod
     def from_stripe_customer(
-        cls, user_id: UUID, stripe_customer: stripe.Customer
+        cls, user_id: UUID, email: str, stripe_customer: stripe.Customer
     ) -> "BillingCustomer":
         djstripe_customer = djstripe.models.Customer.sync_from_stripe_data(
             stripe_customer
         )
-        customer = cls.objects.create(id=user_id, customer=djstripe_customer)
+        customer = cls.objects.create(
+            id=user_id, email=email, customer=djstripe_customer
+        )
         customer.save()
         return customer
 
