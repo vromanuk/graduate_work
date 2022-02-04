@@ -59,7 +59,7 @@ class Config:
     )
     PROPAGATE_EXCEPTIONS = os.getenv("PROPAGATE_EXCEPTIONS", True)
 
-    REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+    REDIS_HOST = os.getenv("REDIS_HOST", "redis_auth")
     REDIS_PORT = os.getenv("REDIS_PORT", 6379)
 
     KAFKA_HOST = os.getenv("KAFKA_HOST", "kafka")
