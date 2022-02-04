@@ -30,8 +30,10 @@
     "login": "",
     "password": ""
 }'`
-
-Для проверки нотификаций, нужно добавить email в mailgun `Authorized Recipients`.
-
+---
+- Создание кастомера `curl -X POST http://localhost/api/v1/customer/ -H 'Authorization: Bearer '$token`
+- Для оплаты подписки `curl -X GET http://localhost/api/v1/checkout/ -H 'Authorization: Bearer '$token`
+- После оплаты подписки, необходимо проверить аккаунт пользователя, что у него сменилась подписка и пришло письмо о смене подписки.
 - Страница аккаунта пользователя `curl --location --request GET 'http://localhost/auth/api/v1/users/' \
---header 'Authorization: Bearer {TOKEN}'`
+--header 'Authorization: Bearer '$token`
+>Для проверки нотификаций, нужно добавить email в mailgun `Authorized Recipients`.
