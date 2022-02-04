@@ -217,10 +217,14 @@ class StripeWebhookView(View):
         billing_user.subscription = subscription
         billing_user.save()
 
+        kafka_topic = KAFKA_TOPICS.get_topic_by(event_type)
+        if not kafka_topic:
+            HttpResponse(status=HTTPStatus.OK)
+
         kafka_producer = KafkaService.get_producer()
         kafka_producer.produce(
-            topic=KAFKA_TOPICS.INVOICE_PAID.value,
-            key=f"{KAFKA_TOPICS.INVOICE_PAID.value}_{subscription.id}_{billing_user.id}",
+            topic=kafka_topic,
+            key=f"{kafka_topic}_{subscription.id}_{billing_user.id}",
             value=json.dumps(
                 {
                     "user_id": str(billing_user.id),
