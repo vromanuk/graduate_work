@@ -105,7 +105,7 @@ class SubscriptionApi(View):
         if not billing_customer.has_active_subscription():
             return JsonResponse(
                 {
-                    "message": "user does not have an active subscription",
+                    "message": "user does not have active subscription",
                     "user_id": request.user_id,
                 }
             )
