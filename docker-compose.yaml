@@ -1,10 +1,10 @@
 version: '3.9'
 
 volumes:
-  postgres_auth_data: {}
-  postgres_notifications_data: {}
-  postgres-billing_data: {}
-  kafka-prod-data: {}
+  postgres_auth_data: { }
+  postgres_notifications_data: { }
+  postgres-billing_data: { }
+  kafka-prod-data: { }
 
 services:
   redis_auth:
@@ -26,7 +26,6 @@ services:
       dockerfile: auth_app/Dockerfile
     restart: always
     command: bash -c "flask create-roles && gunicorn --worker-class gevent -b :5000 --access-logfile - --error-logfile - patched:'create_app()'"
-#    command: gunicorn -b :5000 --access-logfile - --error-logfile - wsgi:"create_app()"
     env_file:
       - ./auth_app/.env-sample
     depends_on:
@@ -148,3 +147,10 @@ services:
       - notifications_app
       - auth_app
       - billing_app
+
+  stripe-webhook:
+    image: stripe/stripe-cli:latest
+    container_name: movies-stripe-webhook
+    command: listen --forward-to nginx/api/v1/webhook/
+    env_file:
+      - ./billing_app/.env.dev
