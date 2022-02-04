@@ -165,6 +165,7 @@ class SubscriptionApi(View):
                 ),
                 key=f"billing_{deleted_subscription.id}_{request.user_id}",
             )
+            kafka_producer.flush()
             return JsonResponse({"subscription": deleted_subscription})
         except Exception as error:
             return JsonResponse({"error": str(error)}, status=HTTPStatus.FORBIDDEN)
@@ -231,6 +232,7 @@ class StripeWebhookView(View):
                 }
             ),
         )
+        kafka_producer.flush()
         return HttpResponse(status=HTTPStatus.OK)
 
     def subscription_updater(self, event_type: str) -> Optional[Callable]:
