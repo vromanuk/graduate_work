@@ -69,23 +69,3 @@ class PostStripeWebhookViewTests(TestCase):
         }
         response = StripeWebhookView.as_view()(self.request)
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-
-    @patch("subscriptions.api.v1.views.StripeWebhookView.invoice_paid")
-    @patch("stripe.Subscription.retrieve", return_value=1)
-    @patch("subscriptions.api.v1.views.KafkaService.get_producer")
-    @patch("subscriptions.api.v1.views.BillingCustomer.objects.filter")
-    @patch("stripe.Webhook.construct_event")
-    def test_process_success(
-        self,
-        mock_construct_event,
-        mock_customer,
-        mock_kafka,
-        mock_retrieve,
-        mock_invoice_paid,
-    ):
-        mock_construct_event.return_value = {
-            "type": "invoice_paid",
-            "data": {"object": {"customer": uuid4(), "subscription": 1}},
-        }
-        response = StripeWebhookView.as_view()(self.request)
-        self.assertEqual(response.status_code, HTTPStatus.OK)

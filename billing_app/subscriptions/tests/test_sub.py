@@ -61,7 +61,8 @@ class DeleteSubscriptionApiTests(TestCase, SubscriptionApiTests):
     def test_cancel_subscription(
         self, has_sub_mock, kafka_mock, json_resp_mock, mock_sub_modify
     ):
-        response = SubscriptionApi.as_view()(self.request)  # TODO
+        response = SubscriptionApi.as_view()(self.request)
+        self.assertEqual(kafka_mock.call_count, 1)
 
     @patch("stripe.Subscription.modify", side_effect=Exception)
     @patch(
