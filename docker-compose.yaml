@@ -16,8 +16,6 @@ services:
       - postgres_auth_data:/var/lib/postgresql/data/
     env_file:
       - ./auth_app/.env-sample
-    ports:
-      - "5433:5432"
 
   auth_app: &auth_app
     container_name: auth_app_backend
