@@ -11,7 +11,6 @@ class UserSubscribedEventHandler(BaseKafkaHandler):
     def handle(cls, body):
         event = UserSubscribedEventSchema.parse_raw(body.value)
         send_subscription_details_task.delay(
-            event.username,
             event.email,
             event.notification_transport,
             subject=event.subject,
@@ -27,7 +26,6 @@ class UserUnsubscribedEventHandler(BaseKafkaHandler):
         event = UserUnsubscribedEventSchema.parse_raw(body.value)
         text_content = f"{event.username.capitalize()} привет! Вы успешно отписались 😿. Возвращайтесь снова!"
         send_subscription_details_task.delay(
-            event.username,
             event.email,
             event.notification_transport,
             subject=event.subject,

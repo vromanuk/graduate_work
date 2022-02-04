@@ -32,7 +32,7 @@ class BaseTransport(abc.ABC):
     @classmethod
     @abc.abstractmethod
     def send_subscription_letter(
-        cls, username: str, send_to: str, subject: str = "", content: str = ""
+        cls, send_to: str, subject: str = "", content: str = ""
     ):
         pass
 
@@ -80,7 +80,7 @@ class EmailTransport(BaseTransport):
 
     @classmethod
     def send_subscription_letter(
-        cls, username: str, send_to: str, subject: str = "", content: str = ""
+        cls, send_to: str, subject: str = "", content: str = ""
     ):
         subject, from_email, to = (
             subject or "Details about Subscription",
@@ -88,7 +88,7 @@ class EmailTransport(BaseTransport):
             send_to,
         )
         text_content = (
-            content or f"{username.capitalize()} привет! Вы успешно оплатили подписку 💸"
+            content or "Привет! Вы успешно оплатили подписку 💸"
         )
         subscription_info_letter = SubscriptionInfoLetterSchema(
             from_email=from_email, to=to, subject=subject, content=text_content

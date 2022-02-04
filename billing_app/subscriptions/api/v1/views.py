@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from djstripe.models import Product, Subscription
 
-from subscriptions.api.enums import KAFKA_TOPICS
+from subscriptions.api.constants import USER_SUBSCRIBED, USER_UNSUBSCRIBED
 from subscriptions.api.utils import token_required
 from subscriptions.models import BillingCustomer
 from subscriptions.services import KafkaService, StripeService
@@ -151,19 +151,16 @@ class SubscriptionApi(View):
 
             kafka_producer = KafkaService.get_producer()
             kafka_producer.produce(
-                topic=KAFKA_TOPICS.USER_UNSUBSCRIBED.value,
+                topic=USER_UNSUBSCRIBED,
+                key=f"{USER_UNSUBSCRIBED}_{deleted_subscription.id}_{request.user_id}",
                 value=json.dumps(
                     {
                         "user_id": str(request.user_id),
-                        "subcription": deleted_subscription.plan.product.name  # todo: 'str' object has no attribute 'name'
-                        if deleted_subscription.plan
-                        and deleted_subscription.plan.product
-                        else None,
+                        "subscription": "SubscribedUserT1",  # TODO https://stripe.com/docs/api/products/retrieve
                         "email": billing_customer.email,
                         "subscription_expire_date": deleted_subscription.cancel_at,
                     }
                 ),
-                key=f"billing_{deleted_subscription.id}_{request.user_id}",
             )
             kafka_producer.flush()
             return JsonResponse({"subscription": deleted_subscription})
@@ -217,22 +214,16 @@ class StripeWebhookView(View):
         billing_user.subscription = subscription
         billing_user.save()
 
-        kafka_topic = KAFKA_TOPICS.get_topic_by(event_type)
-        if not kafka_topic:
-            HttpResponse(status=HTTPStatus.OK)
-
         kafka_producer = KafkaService.get_producer()
         kafka_producer.produce(
-            topic=kafka_topic,
-            key=f"{kafka_topic}_{subscription.id}_{billing_user.id}",
+            topic=USER_SUBSCRIBED,
+            key=f"{USER_SUBSCRIBED}_{stripe_subscription.id}_{billing_user.id}",
             value=json.dumps(
                 {
                     "user_id": str(billing_user.id),
-                    "subscription": subscription.plan.product.name
-                    if subscription.plan and subscription.plan.product
-                    else None,
+                    "subscription": "SubscribedUserT1",  # TODO https://stripe.com/docs/api/products/retrieve
                     "email": billing_user.email,
-                    "subscription_expire_date": subscription.cancel_at,
+                    "subscription_expire_date": subscription.current_period_end,
                 }
             ),
         )

@@ -29,7 +29,6 @@ def save_new_user_to_db_task(username: str, email: str) -> None:
 
 @shared_task
 def send_subscription_details_task(
-    username: str,
     send_to: str,
     transport: str = NotificationTransport.EMAIL.value,
     **kwargs,
@@ -37,5 +36,5 @@ def send_subscription_details_task(
     notification_transport = TRANSPORT_DISPATCHER[transport]
     transport_service = TransportService(notification_transport)
     transport_service.send_subscription_letter(
-        username, send_to, subject=kwargs["subject"], content=kwargs["content"]
+        send_to, subject=kwargs["subject"], content=kwargs["content"]
     )
