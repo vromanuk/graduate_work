@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime
 from http import HTTPStatus
@@ -6,7 +7,7 @@ from typing import Callable, Optional
 import stripe
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -53,7 +54,7 @@ def create_checkout_session(request):
                 customer=BillingCustomer.objects.get(id=request.user_id).customer_id,
             )
             # return redirect(checkout_session.url, status=HTTPStatus.SEE_OTHER)
-            return JsonResponse({'checkout_session_url': checkout_session.url})
+            return JsonResponse({"checkout_session_url": checkout_session.url})
         except Exception as e:
             return JsonResponse(
                 {"message": str(e), "user_id": request.user_id},
@@ -151,14 +152,14 @@ class SubscriptionApi(View):
             kafka_producer = KafkaService.get_producer()
             kafka_producer.produce(
                 topic=KAFKA_TOPICS.USER_UNSUBSCRIBED.value,
-                value=str(
+                value=json.dumps(
                     {
-                        "user_id": request.user_id,
+                        "user_id": str(request.user_id),
                         "subcription": deleted_subscription.plan.product.name  # todo: 'str' object has no attribute 'name'
                         if deleted_subscription.plan
                         and deleted_subscription.plan.product
                         else None,
-                        "email": request.user_email,
+                        "email": billing_customer.email,
                         "subscription_expire_date": deleted_subscription.cancel_at,
                     }
                 ),
@@ -219,14 +220,16 @@ class StripeWebhookView(View):
         kafka_producer.produce(
             topic=KAFKA_TOPICS.INVOICE_PAID.value,
             key=f"{KAFKA_TOPICS.INVOICE_PAID.value}_{subscription.id}_{billing_user.id}",
-            data={
-                "user_id": billing_user.id,
-                "subscription": subscription.plan.product.name
-                if subscription.plan and subscription.plan.product
-                else None,
-                # "email": billing_user.email,  # todo
-                "subscription_expire_date": subscription.cancel_at,
-            },
+            value=json.dumps(
+                {
+                    "user_id": str(billing_user.id),
+                    "subscription": subscription.plan.product.name
+                    if subscription.plan and subscription.plan.product
+                    else None,
+                    "email": billing_user.email,
+                    "subscription_expire_date": subscription.cancel_at,
+                }
+            ),
         )
         return HttpResponse(status=HTTPStatus.OK)
 
