@@ -4,7 +4,7 @@ from src import limiter
 
 
 class Smoke(Resource):
-    decorators = [limiter.limit("3/day")]
+    decorators = [limiter.limit("100/day")]
 
     def get(self):
         """
