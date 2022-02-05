@@ -27,7 +27,7 @@ class Users(Resource):
             "subscription_status": SubscriptionStatus.ACTIVE.value
             if user_account_info.subscription.is_active
             else SubscriptionStatus.IDLE.value,
-            "subscription_expire_date": user_account_info.subscription.expires_at,
+            "subscription_expire_date": str(user_account_info.subscription.expires_at),
         }, HTTPStatus.OK
 
     @wrap_proto(UserInfoResponse)

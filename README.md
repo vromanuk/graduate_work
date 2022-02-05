@@ -37,3 +37,4 @@
 - Страница аккаунта пользователя `curl --location --request GET 'http://localhost/auth/api/v1/users/' \
 --header 'Authorization: Bearer '$token`
 >Для проверки нотификаций, нужно добавить email в mailgun `Authorized Recipients`.
+- Для отмены подписки `curl -X DELETE http://localhost/api/v1/subscription/ -H 'Authorization: Bearer '$token`
