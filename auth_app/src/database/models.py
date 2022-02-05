@@ -98,7 +98,7 @@ class Role(Base):
         roles = {
             "User": (Permission.READ_MOVIES | Permission.UPDATE_PERSONAL_INFO, True),
             "Admin": (0xFF, False),
-            "SubscribedUserT1": (
+            "Standard": (
                 Permission.READ_MOVIES
                 | Permission.UPDATE_PERSONAL_INFO
                 | Permission.WATCH_MOVIES,
