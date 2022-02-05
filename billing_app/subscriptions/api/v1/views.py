@@ -42,7 +42,7 @@ def smoke(request):
 @token_required
 def create_checkout_session(request):
     if request.method == "GET":
-        domain_url = 'http://localhost/api/v1/'
+        domain_url = "http://localhost/api/v1/"
         stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
         try:
             checkout_session = stripe.checkout.Session.create(
@@ -148,6 +148,7 @@ class SubscriptionApi(View):
             deleted_subscription = stripe.Subscription.modify(
                 billing_customer.subscription_id, cancel_at_period_end=True
             )
+            product = stripe.Product.retrieve(deleted_subscription["plan"]["product"])
 
             kafka_producer = KafkaService.get_producer()
             kafka_producer.produce(
@@ -156,7 +157,7 @@ class SubscriptionApi(View):
                 value=json.dumps(
                     {
                         "user_id": str(request.user_id),
-                        "subscription": "SubscribedUserT1",  # TODO https://stripe.com/docs/api/products/retrieve
+                        "subscription": product["name"],
                         "email": billing_customer.email,
                         "subscription_expire_date": deleted_subscription.cancel_at,
                     }
@@ -205,6 +206,8 @@ class StripeWebhookView(View):
             # stripe subscription is not found
             return HttpResponse(status=HTTPStatus.NOT_FOUND)
 
+        product = stripe.Product.retrieve(stripe_subscription["plan"]["product"])
+
         billing_user = BillingCustomer.objects.filter(customer_id=customer_id).first()
         if not billing_user:
             # user does not exist
@@ -221,9 +224,11 @@ class StripeWebhookView(View):
             value=json.dumps(
                 {
                     "user_id": str(billing_user.id),
-                    "subscription": "SubscribedUserT1",  # TODO https://stripe.com/docs/api/products/retrieve
+                    "subscription": product["name"],
                     "email": billing_user.email,
-                    "subscription_expire_date": subscription.current_period_end,
+                    "subscription_expire_date": str(
+                        datetime.fromtimestamp(subscription.current_period_end)
+                    ),
                 }
             ),
         )
@@ -246,7 +251,7 @@ class StripeWebhookView(View):
         Payment is successful and the subscription is created.
         Save customer_id and create subscription.
         """
-        subscription = Subscription(
+        subscription = Subscription.objects.create(
             id=stripe_subscription.id,
             customer_id=customer_id,
             current_period_start=datetime.fromtimestamp(
@@ -257,7 +262,6 @@ class StripeWebhookView(View):
             ),
             status=stripe_subscription.status,
         )
-        subscription.save()
         return subscription
 
     def invoice_paid(self, customer_id, stripe_subscription) -> Subscription:
@@ -274,7 +278,13 @@ class StripeWebhookView(View):
         subscription.current_period_end = (
             datetime.fromtimestamp(stripe_subscription.current_period_end),
         )
-        subscription.save()
+        subscription.save(
+            update_fields=[
+                "status",
+                "current_period_start",
+                "current_period_end",
+            ]
+        )
         return subscription
 
     def invoice_payment_failed(self, customer_id, stripe_subscription) -> Subscription:
