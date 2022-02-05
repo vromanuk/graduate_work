@@ -159,7 +159,7 @@ class SubscriptionApi(View):
                         "user_id": str(request.user_id),
                         "subscription": product["name"],
                         "email": billing_customer.email,
-                        "subscription_expire_date": deleted_subscription.cancel_at,
+                        "subscription_expire_date": str(deleted_subscription.cancel_at),
                     }
                 ),
             )
