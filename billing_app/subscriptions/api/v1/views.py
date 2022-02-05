@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from datetime import datetime
 from http import HTTPStatus
@@ -14,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from djstripe.models import Product, Subscription
 
-from subscriptions.api.constants import USER_SUBSCRIBED, USER_UNSUBSCRIBED
+from subscriptions.api.constants import USER_SUBSCRIBED, USER_UNSUBSCRIBED, SESSION_COMPLETED
 from subscriptions.api.utils import token_required
 from subscriptions.models import BillingCustomer
 from subscriptions.services import KafkaService, StripeService
@@ -217,20 +218,21 @@ class StripeWebhookView(View):
         billing_user.subscription = subscription
         billing_user.save()
 
-        kafka_producer = KafkaService.get_producer()
-        kafka_producer.produce(
-            topic=USER_SUBSCRIBED,
-            key=f"{USER_SUBSCRIBED}_{stripe_subscription.id}_{billing_user.id}",
-            value=json.dumps(
-                {
-                    "user_id": str(billing_user.id),
-                    "subscription": product["name"],
-                    "email": billing_user.email,
-                    "subscription_expire_date": str(subscription.current_period_end),
-                }
-            ),
-        )
-        kafka_producer.flush()
+        if event_type == SESSION_COMPLETED:
+            kafka_producer = KafkaService.get_producer()
+            kafka_producer.produce(
+                topic=USER_SUBSCRIBED,
+                key=f"{USER_SUBSCRIBED}_{stripe_subscription.id}_{billing_user.id}",
+                value=json.dumps(
+                    {
+                        "user_id": str(billing_user.id),
+                        "subscription": product["name"],
+                        "email": billing_user.email,
+                        "subscription_expire_date": str(subscription.current_period_end),
+                    }
+                ),
+            )
+            kafka_producer.flush()
         return HttpResponse(status=HTTPStatus.OK)
 
     def subscription_updater(self, event_type: str) -> Optional[Callable]:
