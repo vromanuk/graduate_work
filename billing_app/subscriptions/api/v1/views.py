@@ -226,9 +226,7 @@ class StripeWebhookView(View):
                     "user_id": str(billing_user.id),
                     "subscription": product["name"],
                     "email": billing_user.email,
-                    "subscription_expire_date": str(
-                        datetime.fromtimestamp(subscription.current_period_end)
-                    ),
+                    "subscription_expire_date": str(subscription.current_period_end),
                 }
             ),
         )
@@ -272,11 +270,11 @@ class StripeWebhookView(View):
             id=stripe_subscription.id, customer_id=customer_id
         )
         subscription.status = stripe_subscription.status
-        subscription.current_period_start = (
-            datetime.fromtimestamp(stripe_subscription.current_period_start),
+        subscription.current_period_start = datetime.fromtimestamp(
+            stripe_subscription.current_period_start
         )
-        subscription.current_period_end = (
-            datetime.fromtimestamp(stripe_subscription.current_period_end),
+        subscription.current_period_end = datetime.fromtimestamp(
+            stripe_subscription.current_period_end
         )
         subscription.save(
             update_fields=[
