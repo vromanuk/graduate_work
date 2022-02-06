@@ -17,7 +17,8 @@ from djstripe.models import Product, Subscription
 from subscriptions.api.constants import (
     SESSION_COMPLETED,
     USER_SUBSCRIBED,
-    USER_UNSUBSCRIBED, USER_SUBSCRIPTION_RENEWAL,
+    USER_SUBSCRIPTION_RENEWAL,
+    USER_UNSUBSCRIBED,
 )
 from subscriptions.api.utils import token_required
 from subscriptions.models import BillingCustomer
@@ -108,10 +109,19 @@ class SubscriptionApi(View):
     def post(self, request: HttpRequest) -> JsonResponse:
         billing_customer = BillingCustomer.objects.get(id=request.user_id)
 
-        if (
-            billing_customer.has_subscription()
-            and billing_customer.subscription.cancel_at_period_end
-        ):
+        if not billing_customer.has_subscription():
+            return JsonResponse(
+                {
+                    "message": "user does not have subscription",
+                    "user_id": request.user_id,
+                    "customer_id": billing_customer.customer_id,
+                    "subscription_id": billing_customer.subscription_id,
+                },
+                status=HTTPStatus.FORBIDDEN,
+            )
+
+        # If the user's subscription has cancelled, renew it.
+        if billing_customer.subscription.cancel_at_period_end:
             stripe_subscription = stripe.Subscription.modify(
                 billing_customer.subscription_id, cancel_at_period_end=False
             )
@@ -139,13 +149,16 @@ class SubscriptionApi(View):
                     "subscription_id": stripe_subscription.id,
                 }
             )
+
+        # User's subscription is active, there's nothing to renew.
         return JsonResponse(
             {
-                "message": "user does not have subscription or it has already been cancelled",
+                "message": "user subscription is active",
                 "user_id": request.user_id,
                 "customer_id": billing_customer.customer_id,
                 "subscription_id": billing_customer.subscription_id,
-            }
+            },
+            status=HTTPStatus.FORBIDDEN,
         )
 
     def delete(self, request: HttpRequest) -> JsonResponse:
