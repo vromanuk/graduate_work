@@ -8,7 +8,6 @@ from flask_restful import Resource
 from marshmallow import ValidationError
 
 from src.database.db import session_scope
-from src.enums import SubscriptionStatus
 from src.proto import UserInfoRequest, UserInfoResponse, wrap_proto
 from src.schemas.users import UserSchema
 from src.services.auth_service import admin_required
@@ -24,10 +23,12 @@ class Users(Resource):
             "id": str(user_account_info.id),
             "email": user_account_info.email,
             "role": user_account_info.role.name,
-            "subscription_status": SubscriptionStatus.ACTIVE.value
-            if user_account_info.subscription.is_active
-            else SubscriptionStatus.IDLE.value,
+            "subscription_status": user_account_info.subscription.status,
+            "subscription_is_active": user_account_info.subscription.is_active,
             "subscription_expire_date": str(user_account_info.subscription.expires_at),
+            "subscription_cancelled_at": str(
+                user_account_info.subscription.cancelled_at
+            ),
         }, HTTPStatus.OK
 
     @wrap_proto(UserInfoResponse)

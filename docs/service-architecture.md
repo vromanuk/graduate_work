@@ -32,12 +32,23 @@ end box
 
 Client -> nginx: Proxy request
 activate nginx
-nginx -> billing: Redirect the client to the Stripe
+nginx -> billing: Redirect the client to the Billing
 activate billing
-billing -> Stripe: Validate client's billing information: card number, verify funds, etc.
-
+billing -> Stripe: Register Customer and Create Checkout Session
 activate Stripe
+Stripe -> billing: Checkout URL
+deactivate Stripe
+billing -> nginx: 200 OK
+deactivate billing
+nginx -> Client: Return Checkout URL
+deactivate nginx
+
+Client -> Stripe: Go to Checkout URL
+Stripe -> Stripe: Validate client's billing information: card number, verify funds, etc.
+Stripe -> Client: Redirect to Success/Cancel URL
+
 Stripe -> billing: Webhook event (`checkout.session.completed`, `customer.subscription.deleted`)
+activate Stripe
 deactivate Stripe
 billing -> PostgresBilling: Save or Update subscription info
 deactivate PostgresBilling
@@ -48,22 +59,19 @@ else
     billing -> Kafka: Emit event `USER_UNSUBSCRIBED`
 end
 deactivate Kafka
-billing -> nginx: 200 OK
-deactivate billing
-nginx -> Client: Successfully subscribed / unsubscribed
-deactivate nginx
+
 Stripe -> Stripe: Recurring charges
 
 activate Kafka
 activate auth
 activate notifications
-Kafka -> auth
+auth -> Kafka
 activate PostgresAuth
 auth -> PostgresAuth: Update User subscription info
 deactivate PostgresAuth
 deactivate auth
 
-Kafka -> notifications
+notifications -> Kafka
 activate Redis
 notifications -> Redis: Schedule task send_email `Information about current subscription`
 deactivate Redis

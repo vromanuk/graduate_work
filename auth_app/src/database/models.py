@@ -67,7 +67,9 @@ class Subscription(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(64))
     is_active = Column(Boolean, default=False)
+    status = Column(String(64), default=SubscriptionStatus.IDLE.value)
     expires_at = Column(DateTime)
+    cancelled_at = Column(DateTime, default=None, nullable=True)
     users = relationship("User", back_populates="subscription", lazy="selectin")
 
     @classmethod

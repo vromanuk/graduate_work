@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 
+from src.enums import SubscriptionStatus
 from src.kafka.handlers.base import BaseKafkaHandler
 from src.kafka.schemas.user_subscription_event_schemas import (
     UserSubscribedEventSchema,
@@ -27,6 +28,7 @@ class UserSubscribedEventHandler(BaseKafkaHandler):
             user_id=event.user_id,
             expire_date=event.subscription_expire_date,
             is_active=True,
+            status=SubscriptionStatus.ACTIVE.value,
             subscription_name=event.subscription,
         )
         updated = UserService.update_role(
@@ -49,11 +51,15 @@ class UserUnsubscribedEventHandler(BaseKafkaHandler):
     def handle(cls, body):
         msg = json.loads(body.value())
         event = UserUnsubscribedEventSchema(msg["user_id"])
-        UserService.update_subscription(
-            user_id=event.user_id, expire_date=datetime.datetime.now(), is_active=False
-        )
-        updated = UserService.reset_role(user_id=event.user_id, default=True)
-        if updated:
+        try:
+            UserService.update_subscription(
+                user_id=event.user_id,
+                cancelled_at=datetime.datetime.now(),
+                is_active=False,
+                status=SubscriptionStatus.CANCELLED.value,
+            )
             logger.info(f"Subscription for {event.user_id} was successfully cancelled")
-        else:
-            logger.error(f"Subscription for {event.user_id} wasn't cancelled")
+        except Exception as err:
+            logger.error(
+                f"Subscription for {event.user_id} wasn't cancelled. Due to {err}"
+            )

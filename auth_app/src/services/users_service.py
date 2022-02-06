@@ -122,14 +122,18 @@ class UserService:
     def update_subscription(
         cls,
         user_id: UUID,
-        expire_date: datetime.datetime,
         is_active: bool,
+        status: str,
+        expire_date: Optional[datetime.datetime] = None,
+        cancelled_at: Optional[datetime.datetime] = None,
         subscription_name: Optional[str] = None,
     ):
         user = User.find_by_uuid(user_id)
         with session_scope() as session:
             user.subscription.name = subscription_name or user.subscription.name
             user.subscription.is_active = is_active
-            user.subscription.expires_at = expire_date
+            user.subscription.expires_at = expire_date or user.subscription.expires_at
+            user.subscription.cancelled_at = cancelled_at
+            user.subscription.status = status
             session.add(user)
             session.commit()
