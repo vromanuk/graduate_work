@@ -158,7 +158,7 @@ class SubscriptionApi(View):
                 "customer_id": billing_customer.customer_id,
                 "subscription_id": billing_customer.subscription_id,
             },
-            status=HTTPStatus.FORBIDDEN,
+            status=HTTPStatus.BAD_REQUEST,
         )
 
     def delete(self, request: HttpRequest) -> JsonResponse:
