@@ -17,7 +17,7 @@ from djstripe.models import Product, Subscription
 from subscriptions.api.constants import (
     SESSION_COMPLETED,
     USER_SUBSCRIBED,
-    USER_UNSUBSCRIBED,
+    USER_UNSUBSCRIBED, USER_SUBSCRIPTION_RENEWAL,
 )
 from subscriptions.api.utils import token_required
 from subscriptions.models import BillingCustomer
@@ -117,6 +117,20 @@ class SubscriptionApi(View):
             )
             billing_customer.subscription.cancel_at_period_end = False
             billing_customer.subscription.save()
+
+            kafka_producer = KafkaService.get_producer()
+            kafka_producer.produce(
+                topic=USER_SUBSCRIPTION_RENEWAL,
+                key=f"{USER_SUBSCRIPTION_RENEWAL}_{billing_customer.subscription_id}_{request.user_id}",
+                value=json.dumps(
+                    {
+                        "user_id": str(request.user_id),
+                        "email": billing_customer.email,
+                    }
+                ),
+            )
+            kafka_producer.flush()
+
             return JsonResponse(
                 {
                     "message": "Ok",
@@ -127,7 +141,7 @@ class SubscriptionApi(View):
             )
         return JsonResponse(
             {
-                "message": "user does not have subscription or it has already been canceled",
+                "message": "user does not have subscription or it has already been cancelled",
                 "user_id": request.user_id,
                 "customer_id": billing_customer.customer_id,
                 "subscription_id": billing_customer.subscription_id,

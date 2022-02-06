@@ -7,3 +7,7 @@ class UserSubscribedEventSchema(BaseEventSchema):
 
 class UserUnsubscribedEventSchema(BaseEventSchema):
     email: str
+
+
+class UserSubscriptionRenewalEventSchema(BaseEventSchema):
+    email: str
