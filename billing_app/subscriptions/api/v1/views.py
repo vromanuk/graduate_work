@@ -1,5 +1,4 @@
 import json
-import logging
 import uuid
 from datetime import datetime
 from http import HTTPStatus
@@ -15,7 +14,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from djstripe.models import Product, Subscription
 
-from subscriptions.api.constants import USER_SUBSCRIBED, USER_UNSUBSCRIBED, SESSION_COMPLETED
+from subscriptions.api.constants import (
+    SESSION_COMPLETED,
+    USER_SUBSCRIBED,
+    USER_SUBSCRIPTION_RENEWAL,
+    USER_UNSUBSCRIBED,
+)
 from subscriptions.api.utils import token_required
 from subscriptions.models import BillingCustomer
 from subscriptions.services import KafkaService, StripeService
@@ -44,6 +48,7 @@ def smoke(request):
 def create_checkout_session(request):
     if request.method == "GET":
         domain_url = "http://localhost/api/v1/"
+        # domain_url = settings.BASE_API_URL
         stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
         try:
             checkout_session = stripe.checkout.Session.create(
@@ -103,20 +108,39 @@ class SubscriptionApi(View):
 
     def post(self, request: HttpRequest) -> JsonResponse:
         billing_customer = BillingCustomer.objects.get(id=request.user_id)
-        if not billing_customer.has_active_subscription():
+
+        if not billing_customer.has_subscription():
             return JsonResponse(
                 {
-                    "message": "user does not have active subscription",
+                    "message": "user does not have subscription",
                     "user_id": request.user_id,
-                }
+                    "customer_id": billing_customer.customer_id,
+                    "subscription_id": billing_customer.subscription_id,
+                },
+                status=HTTPStatus.FORBIDDEN,
             )
 
-        if billing_customer.subscription.status == "cancelled":
+        # If the user's subscription has cancelled, renew it.
+        if billing_customer.subscription.cancel_at_period_end:
             stripe_subscription = stripe.Subscription.modify(
                 billing_customer.subscription_id, cancel_at_period_end=False
             )
-            billing_customer.subscription.status = stripe_subscription.status
-            billing_customer.save()
+            billing_customer.subscription.cancel_at_period_end = False
+            billing_customer.subscription.save()
+
+            kafka_producer = KafkaService.get_producer()
+            kafka_producer.produce(
+                topic=USER_SUBSCRIPTION_RENEWAL,
+                key=f"{USER_SUBSCRIPTION_RENEWAL}_{billing_customer.subscription_id}_{request.user_id}",
+                value=json.dumps(
+                    {
+                        "user_id": str(request.user_id),
+                        "email": billing_customer.email,
+                    }
+                ),
+            )
+            kafka_producer.flush()
+
             return JsonResponse(
                 {
                     "message": "Ok",
@@ -125,7 +149,17 @@ class SubscriptionApi(View):
                     "subscription_id": stripe_subscription.id,
                 }
             )
-        return JsonResponse({})
+
+        # User's subscription is active, there's nothing to renew.
+        return JsonResponse(
+            {
+                "message": "user subscription is active",
+                "user_id": request.user_id,
+                "customer_id": billing_customer.customer_id,
+                "subscription_id": billing_customer.subscription_id,
+            },
+            status=HTTPStatus.BAD_REQUEST,
+        )
 
     def delete(self, request: HttpRequest) -> JsonResponse:
         queryset = BillingCustomer.objects.filter(id=request.user_id)
@@ -145,11 +179,23 @@ class SubscriptionApi(View):
                 status=HTTPStatus.FORBIDDEN,
             )
 
+        if billing_customer.subscription.cancel_at_period_end:
+            return JsonResponse(
+                {
+                    "message": "user has already cancelled subscription",
+                    "user_id": request.user_id,
+                }
+            )
+
         try:
             deleted_subscription = stripe.Subscription.modify(
                 billing_customer.subscription_id, cancel_at_period_end=True
             )
             product = stripe.Product.retrieve(deleted_subscription["plan"]["product"])
+            billing_customer.subscription.cancel_at_period_end = (
+                deleted_subscription.cancel_at_period_end
+            )
+            billing_customer.subscription.save()
 
             kafka_producer = KafkaService.get_producer()
             kafka_producer.produce(
@@ -227,7 +273,9 @@ class StripeWebhookView(View):
                         "user_id": str(billing_user.id),
                         "subscription": product["name"],
                         "email": billing_user.email,
-                        "subscription_expire_date": str(subscription.current_period_end),
+                        "subscription_expire_date": str(
+                            subscription.current_period_end
+                        ),
                     }
                 ),
             )

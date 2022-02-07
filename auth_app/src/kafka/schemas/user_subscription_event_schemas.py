@@ -14,3 +14,9 @@ class UserSubscribedEventSchema:
 @dataclass(frozen=True)
 class UserUnsubscribedEventSchema:
     user_id: UUID
+
+
+@dataclass(frozen=True)
+class UserSubscriptionRenewalEventSchema:
+    user_id: UUID
+    email: str

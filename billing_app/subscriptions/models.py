@@ -36,5 +36,14 @@ class BillingCustomer(models.Model):
         customer.save()
         return customer
 
-    def has_active_subscription(self) -> bool:
+    def has_subscription(self) -> bool:
+        """
+        Return True if the user has a subscription. The subscription status does not matter.
+        """
         return self.subscription is not None
+
+    def has_active_subscription(self) -> bool:
+        """
+        Return True if the user has an active subscription.
+        """
+        return self.has_subscription() and self.subscription.status == "active"

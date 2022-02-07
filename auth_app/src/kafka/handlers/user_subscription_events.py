@@ -7,6 +7,7 @@ from src.kafka.handlers.base import BaseKafkaHandler
 from src.kafka.schemas.user_subscription_event_schemas import (
     UserSubscribedEventSchema,
     UserUnsubscribedEventSchema,
+    UserSubscriptionRenewalEventSchema,
 )
 from src.services.users_service import UserService
 
@@ -62,4 +63,27 @@ class UserUnsubscribedEventHandler(BaseKafkaHandler):
         except Exception as err:
             logger.error(
                 f"Subscription for {event.user_id} wasn't cancelled. Due to {err}"
+            )
+
+
+class UserSubscriptionRenewalEventHandler(BaseKafkaHandler):
+    topic = "billing_subscription_renewal"
+
+    @classmethod
+    def handle(cls, body):
+        msg = json.loads(body.value())
+        event = UserSubscriptionRenewalEventSchema(
+            user_id=msg["user_id"],
+            email=msg["email"],
+        )
+        try:
+            UserService.update_subscription(
+                user_id=event.user_id,
+                is_active=True,
+                status=SubscriptionStatus.ACTIVE.value,
+            )
+            logger.info(f"Subscription for {event.user_id} was successfully renewed")
+        except Exception as err:
+            logger.error(
+                f"Subscription for {event.user_id} wasn't renewed, due to {err}"
             )
